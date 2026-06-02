@@ -24,8 +24,9 @@ window._isAdmin   = isAdmin;
 
 // 載入員工
 window._loadEmps = async () => {
-  if (!storeId) return [];
-  const { data } = await sb.from('employees').select('*').eq('store_id', storeId).order('created_at');
+  const sid = window._storeId;
+  if (!sid) return [];
+  const { data } = await sb.from('employees').select('*').eq('store_id', sid).order('created_at');
   return (data||[]).map((e,i) => ({
     id: i+1, db_id: e.id, name: e.name,
     targetSalary: e.target_salary, laborIns: e.labor_ins,
@@ -36,21 +37,26 @@ window._loadEmps = async () => {
 };
 
 // 存出勤
-window._saveAtt = async (data) => {
+window._saveAtt = async (fillData) => {
+  const sid = window._storeId;
   const month = document.getElementById('f-month')?.value;
-  if (!storeId || !month) return;
+  if (!sid || !month) { console.error('store_id 或 month 為空'); return; }
   const { error } = await sb.from('attendance').upsert(
-    { store_id: storeId, month, data, submitted: true, updated_at: new Date().toISOString() },
+    { store_id: sid, month, data: fillData, submitted: true, updated_at: new Date().toISOString() },
     { onConflict: 'store_id,month' }
   );
-  if (!error) console.log('✅ 已存雲端');
-  else console.error('❌', error.message);
+  if (!error) console.log('✅ 已存雲端', sid, month);
+  else console.error('❌ 存檔失敗', error.message);
 };
 
 // 讀出勤
 window._loadAtt = async (month) => {
-  if (!storeId || !month) return null;
-  const { data } = await sb.from('attendance').select('data').eq('store_id', storeId).eq('month', month).single();
+  const sid = window._storeId;
+  if (!sid || !month) { console.error('loadAtt: 缺少 sid 或 month'); return null; }
+  console.log('讀取雲端資料', sid, month);
+  const { data, error } = await sb.from('attendance').select('data').eq('store_id', sid).eq('month', month).single();
+  if (error) { console.log('無資料或錯誤:', error.message); return null; }
+  console.log('讀到資料:', data?.data ? '有' : '無');
   return data?.data || null;
 };
 
