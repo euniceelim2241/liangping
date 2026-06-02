@@ -2139,12 +2139,24 @@ function buildFill() {
   }
   empList.forEach((e, i) => c.appendChild(makeCard(e, i+1)));
   if (!document.querySelector('.holiday-item')) addHolidayRow();
-  // 還原上次填寫資料
-  try {
-    const saved = localStorage.getItem(FK);
-    if (saved) restoreFill(JSON.parse(saved));
-  } catch(e) {}
-  updateSum();
+  // 從 Supabase 讀取當月資料，fallback 到 localStorage
+  (async () => {
+    try {
+      const month = document.getElementById('f-month')?.value;
+      if (window._loadAttendance && month) {
+        const cloudData = await window._loadAttendance(month);
+        if (cloudData) {
+          restoreFill(cloudData);
+          updateSum();
+          return;
+        }
+      }
+      // fallback: localStorage
+      const saved = localStorage.getItem(FK);
+      if (saved) restoreFill(JSON.parse(saved));
+    } catch(e) {}
+    updateSum();
+  })();
 }
 
 function initial(name) { return (name||'?').slice(0,1); }
@@ -2762,6 +2774,11 @@ function updateSum() {
   try {
     const snap = snapshotFill();
     localStorage.setItem(FK, JSON.stringify(snap));
+    // 同步到 Supabase（debounce 3秒）
+    if (window._saveTimer) clearTimeout(window._saveTimer);
+    window._saveTimer = setTimeout(() => {
+      if (window._saveAttendance) window._saveAttendance(snap);
+    }, 3000);
   } catch(e) {}
 }
 
@@ -3111,6 +3128,8 @@ function closeWelcome() {
   document.getElementById('f-month').value = new Date().toISOString().slice(0,7);
   document.getElementById('f-month').addEventListener('change', function() {
     localStorage.setItem('att_month', this.value);
+    // 切換月份時重新載入雲端資料
+    buildFill();
   });
 
   // 事件委派：國定補薪天數輸入即時存檔
