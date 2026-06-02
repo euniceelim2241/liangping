@@ -138,9 +138,8 @@ const SUPABASE_URL = 'https://bsamoqlwdssdaoyxraii.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_dLVyhYBGldwOrUnenF4GTw_4pD3C3qY';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// 最高權限帳號（身分證 + 密碼）
-const ADMIN_ID = 'ADMIN';
-const ADMIN_PWD = 'liangping2024';
+// 最高權限身分證號碼
+const ADMIN_IDS = ['L224147851'];
 
 window.doLogin = async function() {
   const idNum = document.getElementById('id-input').value.trim().toUpperCase();
@@ -152,21 +151,12 @@ window.doLogin = async function() {
   btn.disabled = true;
   btn.textContent = '驗證中…';
 
-  // 最高權限登入（特殊帳號）
-  if (idNum === ADMIN_ID) {
-    const pwd = prompt('請輸入最高權限密碼：');
-    if (pwd === ADMIN_PWD) {
-      sessionStorage.setItem('role', 'admin');
-      sessionStorage.setItem('name', '管理員');
-      window.location.href = 'dashboard.html';
-      return;
-    } else {
-      err.textContent = '密碼錯誤。';
-      err.style.display = 'block';
-      btn.disabled = false;
-      btn.textContent = '登入';
-      return;
-    }
+  // 最高權限登入
+  if (ADMIN_IDS.includes(idNum)) {
+    sessionStorage.setItem('role', 'admin');
+    sessionStorage.setItem('name', '管理員');
+    window.location.href = 'dashboard.html';
+    return;
   }
 
   // 一般管理人員登入
