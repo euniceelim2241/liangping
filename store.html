@@ -6,131 +6,150 @@
 <title>月度出勤統計表</title>
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 const SUPABASE_URL = 'https://bsamoqlwdssdaoyxraii.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_dLVyhYBGldwOrUnenF4GTw_4pD3C3qY';
 window._sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// 權限檢查
-const role = sessionStorage.getItem('role');
-const storeId = sessionStorage.getItem('view_store_id') || sessionStorage.getItem('store_id');
+// 從 session 取得登入資訊
+const role      = sessionStorage.getItem('role');
+const storeId   = sessionStorage.getItem('view_store_id') || sessionStorage.getItem('store_id');
 const storeName = sessionStorage.getItem('view_store_name') || sessionStorage.getItem('store_name');
-const isAdmin = role === 'admin';
+const isAdmin   = role === 'admin';
 const adminView = sessionStorage.getItem('admin_view') === '1';
 
-if (!role) { window.location.href = 'login.html'; }
+// 沒登入就跳回登入頁
+if (!role) window.location.href = 'login.html';
 
-window._storeId = storeId;
+window._storeId   = storeId;
 window._storeName = storeName;
-window._isAdmin = isAdmin;
-window._adminView = adminView;
+window._isAdmin   = isAdmin;
 
-// 載入員工資料（從 Supabase）
-async function loadEmployeesFromDB() {
+// ── 從 Supabase 載入員工 ──
+async function loadEmployees() {
   if (!storeId) return [];
   const { data } = await window._sb.from('employees').select('*').eq('store_id', storeId).order('created_at');
-  return data || [];
+  return (data || []).map((e, i) => ({
+    id: i + 1,
+    db_id: e.id,
+    name: e.name,
+    targetSalary: e.target_salary,
+    laborIns: e.labor_ins,
+    healthIns: e.health_ins,
+    healthType: e.health_dependents > 0 ? 'dependent' : 'personal',
+    mealIns: e.meal_allowance,
+    pensionRate: 0,
+    role: e.role || 'staff',
+    hourlyRate: e.hourly_rate || 0,
+  }));
 }
 
-// 儲存出勤資料到 Supabase
+// ── 儲存員工到 Supabase（僅 admin）──
+window._saveEmployee = async function(dbId, fields) {
+  if (!isAdmin || !dbId) return;
+  await window._sb.from('employees').update(fields).eq('id', dbId);
+};
+
+// ── 新增員工到 Supabase（僅 admin）──
+window._addEmployee = async function(emp) {
+  if (!isAdmin || !storeId) return null;
+  const { data } = await window._sb.from('employees').insert({
+    store_id: storeId,
+    name: emp.name,
+    target_salary: emp.targetSalary || 0,
+    labor_ins: emp.laborIns || 0,
+    health_ins: emp.healthIns || 0,
+    health_dependents: emp.healthType === 'dependent' ? 1 : 0,
+    meal_allowance: emp.mealIns || false,
+    hourly_rate: emp.hourlyRate || 0,
+    role: emp.role || 'staff',
+  }).select().single();
+  return data;
+};
+
+// ── 刪除員工（僅 admin）──
+window._deleteEmployee = async function(dbId) {
+  if (!isAdmin || !dbId) return;
+  await window._sb.from('employees').delete().eq('id', dbId);
+};
+
+// ── 存出勤資料 ──
 window._saveAttendance = async function(fillData) {
   if (!storeId) return;
   const month = document.getElementById('f-month')?.value;
   if (!month) return;
-  await window._sb.from('attendance').upsert({
+  const { error } = await window._sb.from('attendance').upsert({
     store_id: storeId,
     month: month,
     data: fillData,
     submitted: true,
     updated_at: new Date().toISOString()
   }, { onConflict: 'store_id,month' });
+  if (error) console.error('存檔失敗', error);
+  else console.log('✅ 已儲存到雲端');
 };
 
-// 讀取出勤資料從 Supabase
+// ── 讀出勤資料 ──
 window._loadAttendance = async function(month) {
   if (!storeId) return null;
-  const { data, error } = await window._sb.from('attendance').select('data').eq('store_id', storeId).eq('month', month).single();
-  if (error) { console.log('載入出勤資料失敗', error); return null; }
-  // data 欄位本身就是 jsonb，Supabase 回傳時是 { data: { ...填寫內容... } }
-  return data?.data || null;
+  try {
+    const { data, error } = await window._sb.from('attendance').select('data').eq('store_id', storeId).eq('month', month).single();
+    if (error) return null;
+    return data?.data || null;
+  } catch(e) { return null; }
 };
 
-// 儲存員工資料到 Supabase（最高權限才可用）
-window._saveEmployee = async function(emp) {
-  if (!isAdmin) return;
-  if (emp.db_id) {
-    await window._sb.from('employees').update({
-      name: emp.name,
-      target_salary: emp.targetSalary,
-      labor_ins: emp.laborIns,
-      health_ins: emp.healthIns,
-      health_dependents: emp.healthType || 0,
-      meal_allowance: emp.mealIns || false,
-      hourly_rate: emp.hourlyRate || 0,
-      role: emp.role || 'staff'
-    }).eq('id', emp.db_id);
-  } else {
-    const { data } = await window._sb.from('employees').insert({
-      store_id: storeId,
-      name: emp.name,
-      target_salary: emp.targetSalary,
-      labor_ins: emp.laborIns,
-      health_ins: emp.healthIns,
-      health_dependents: emp.healthType || 0,
-      meal_allowance: emp.mealIns || false,
-      hourly_rate: emp.hourlyRate || 0,
-      role: emp.role || 'staff'
-    }).select().single();
-    return data;
-  }
-};
-
-// 初始化完成後，把員工資料載入
+// ── 初始化 ──
 window._initFromDB = async function() {
-  const emps = await loadEmployeesFromDB();
-  // 塞入 store name
+  // 設店名
   const sEl = document.getElementById('s-store');
   if (sEl) sEl.value = storeName || '';
   const fEl = document.getElementById('f-store');
   if (fEl) fEl.textContent = storeName || '';
 
-  // 建立員工列
-  emps.forEach(e => {
-    addSetupRow(e.name, e.target_salary, e.labor_ins, e.health_ins, e.health_dependents, e.meal_allowance, null, e.role, e.hourly_rate, e.id);
-  });
+  // 設標題
+  const hdrEl = document.getElementById('hdr-store-name');
+  if (hdrEl) hdrEl.textContent = (storeName || '') + ' — 月度出勤統計表';
 
-  // 設定月份
+  // 設月份
   const now = new Date();
-  const monthVal = now.toISOString().slice(0,7);
+  const monthVal = now.toISOString().slice(0, 7);
   const monthEl = document.getElementById('f-month');
   if (monthEl) monthEl.value = monthVal;
 
-  // 如果有員工就去填寫頁；否則去設定頁
-  if (emps.length > 0) {
-    await buildFill();
-    goTab('fill');
-  } else goTab('setup');
+  // 載入員工
+  const emps = await loadEmployees();
+  emps.forEach(e => addSetupRow(e.name, e.targetSalary, e.laborIns, e.healthIns, e.healthType, e.mealIns, e.pensionRate, e.role, e.hourlyRate, e.db_id));
 
-  // 設定頁讀寫權限：非 admin 只能看出勤頁，不能改設定
+  // 非 admin 隱藏設定 tab
   if (!isAdmin) {
     const setupTab = document.getElementById('t-setup');
-    if (setupTab) { setupTab.style.display = 'none'; }
+    if (setupTab) setupTab.style.display = 'none';
   }
 
-  // 如果是 admin 從 dashboard 點進來，顯示返回按鈕
+  // admin view 加返回按鈕
   if (adminView) {
-    const hdrRight = document.querySelector('.hdr');
-    if (hdrRight) {
-      const backBtn = document.createElement('button');
-      backBtn.textContent = '← 返回總覽';
-      backBtn.style.cssText = 'background:none;border:1px solid #999;border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer;color:#555;';
-      backBtn.onclick = () => { sessionStorage.removeItem('admin_view'); sessionStorage.removeItem('goto_tab'); sessionStorage.removeItem('view_store_id'); sessionStorage.removeItem('view_store_name'); window.location.href = 'dashboard.html'; };
-      hdrRight.appendChild(backBtn);
+    const hdr = document.querySelector('.hdr');
+    if (hdr) {
+      const btn = document.createElement('button');
+      btn.textContent = '← 返回總覽';
+      btn.style.cssText = 'background:none;border:1px solid #999;border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer;color:#555;font-family:inherit;';
+      btn.onclick = () => {
+        sessionStorage.removeItem('admin_view');
+        sessionStorage.removeItem('view_store_id');
+        sessionStorage.removeItem('view_store_name');
+        window.location.href = 'dashboard.html';
+      };
+      hdr.appendChild(btn);
     }
   }
 
-  // goto_tab
-  const gotoTab = sessionStorage.getItem('goto_tab');
-  if (gotoTab) { sessionStorage.removeItem('goto_tab'); setTimeout(() => goTab(gotoTab), 100); }
+  if (emps.length > 0) {
+    await buildFill();
+    goTab('fill');
+  } else {
+    goTab('setup');
+  }
 };
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
@@ -567,21 +586,10 @@ body::before {
       <div class="hdr-sub">請店長於月底最後一個工作日前完成填寫</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;">
-      <button onclick="doLogout()" style="background:none;border:1px solid var(--ink-faint);border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;color:var(--ink-light);font-family:'Noto Sans TC',sans-serif;">登出</button>
+      <button onclick="sessionStorage.clear();window.location.href='login.html'" style="background:none;border:1px solid var(--ink-faint);border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;color:var(--ink-light);font-family:'Noto Sans TC',sans-serif;">登出</button>
       <div class="stamp"><b>勤</b><small>ATTENDANCE</small></div>
     </div>
   </header>
-  <script>
-  function doLogout() {
-    sessionStorage.clear();
-    window.location.href = 'login.html';
-  }
-  // 設定標題店名
-  document.addEventListener('DOMContentLoaded', function() {
-    const n = window._storeName;
-    if (n) document.getElementById('hdr-store-name').textContent = n + ' — 月度出勤統計表';
-  });
-  </script>
 
   <div class="tabs">
     <button class="tab" id="t-fill" onclick="goTab('fill')">
@@ -685,12 +693,33 @@ body::before {
       <div class="si hi"><div class="si-lbl">有請假</div><div class="si-num" id="s-l">0</div></div>
       <div class="si"><div class="si-lbl">未填寫</div><div class="si-num" id="s-p">0</div></div>
     </div>
+    <!-- 換裝置區塊 -->
+    <div style="background:var(--gold-pale);border-left:3px solid var(--gold);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:500;color:#9a7a20;margin-bottom:10px;letter-spacing:0.08em;">📱 換裝置繼續填寫</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="ei-btn" onclick="exportCode()" style="background:var(--ink);color:white;border-color:var(--ink);flex:1;justify-content:center;">
+          複製資料碼（換裝置用）
+        </button>
+        <button class="ei-btn" onclick="openImportCode()" style="flex:1;justify-content:center;">
+          貼上資料碼還原
+        </button>
+      </div>
+      <div id="export-code-box" style="display:none;margin-top:10px;">
+        <textarea id="export-code-text" readonly style="width:100%;height:80px;font-size:11px;border:1px solid var(--paper-line);border-radius:var(--r);padding:8px;font-family:monospace;background:white;resize:none;"></textarea>
+        <div style="font-size:11px;color:var(--ink-light);margin-top:4px;">👆 長按選取全部 → 複製 → 到新裝置貼上</div>
+      </div>
+      <div id="import-code-box" style="display:none;margin-top:10px;">
+        <textarea id="import-code-text" placeholder="貼上資料碼..." style="width:100%;height:80px;font-size:11px;border:1px solid var(--paper-line);border-radius:var(--r);padding:8px;font-family:monospace;background:white;resize:none;"></textarea>
+        <button onclick="doImportCode()" style="margin-top:6px;width:100%;padding:10px;background:var(--ink);color:white;border:none;border-radius:var(--r);font-family:'Noto Sans TC',sans-serif;font-size:13px;cursor:pointer;">還原資料</button>
+      </div>
+    </div>
+
     <div class="actions">
       <button class="print-btn" onclick="window.print()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>
         列印 / 存成 PDF
       </button>
-      <button class="print-btn" onclick="clearFillData()" style="background:white;color:var(--accent);border:1px solid var(--accent);">
+      <button id="clear-fill-btn" class="print-btn" onclick="clearFillData()" style="background:white;color:var(--accent);border:1px solid var(--accent);">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
         清除本月填寫
       </button>
@@ -797,13 +826,11 @@ const SK = 'att_store', EK = 'att_emps', FK = 'att_fill';
 let empList = [], sSeq = 0, lvSeq = 0;
 
 function load() {
-  // 優先從 sessionStorage 讀（Supabase 資料會在 _initFromDB 載入）
-  try { return { store: { name: window._storeName || '' }, emps: [] }; }
-  catch(e) { return { store:{}, emps:[] }; }
+  // 員工資料改從 Supabase 讀，這裡只回傳 store 名稱
+  return { store: { name: window._storeName || '' }, emps: [] };
 }
 function persist(store, emps) {
-  // 員工資料改存 Supabase，這裡只做 no-op
-  // 出勤填寫資料仍用 localStorage 暫存，autoSave 時同步
+  // 員工資料改存 Supabase，不存 localStorage
 }
 /* ── INSURANCE BRACKET LOOKUP ── */
 const LABOR_BRACKETS = [
@@ -862,16 +889,105 @@ function onTargetSalaryChange(rowId) {
   if (healthInput) healthInput.value = autoHealthIns(insuredSalary);
   autoSave();
 }
+function exportCode() {
+  autoSave();
+  const store = localStorage.getItem(SK) || '{}';
+  const emps  = localStorage.getItem(EK) || '[]';
+  const fill  = localStorage.getItem(FK) || '{}';
+  const month = localStorage.getItem('att_month') || '';
+  const all   = { store: JSON.parse(store), emps: JSON.parse(emps), fill: JSON.parse(fill), month };
+  const code  = btoa(encodeURIComponent(JSON.stringify(all)));
+  
+  const box = document.getElementById('export-code-box');
+  const txt = document.getElementById('export-code-text');
+  document.getElementById('import-code-box').style.display = 'none';
+  box.style.display = 'block';
+  txt.value = code;
+  txt.select();
+  try {
+    navigator.clipboard.writeText(code).then(() => {
+      txt.parentElement.querySelector('div').textContent = '✅ 已複製！到新裝置貼上即可還原';
+    });
+  } catch(e) {
+    txt.parentElement.querySelector('div').textContent = '👆 長按選取全部 → 複製 → 到新裝置貼上';
+  }
+}
+
+function openImportCode() {
+  document.getElementById('export-code-box').style.display = 'none';
+  const box = document.getElementById('import-code-box');
+  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+function doImportCode() {
+  const code = document.getElementById('import-code-text').value.trim();
+  if (!code) { alert('請先貼上資料碼'); return; }
+  try {
+    const all = JSON.parse(decodeURIComponent(atob(code)));
+    if (!all.emps || !Array.isArray(all.emps)) throw new Error();
+    localStorage.setItem(SK, JSON.stringify(all.store || {}));
+    localStorage.setItem(EK, JSON.stringify(all.emps));
+    if (all.fill) localStorage.setItem(FK, JSON.stringify(all.fill));
+    if (all.month) localStorage.setItem('att_month', all.month);
+    // 重新載入
+    document.getElementById('s-store').value = all.store?.name || '';
+    document.getElementById('setup-rows').innerHTML = '';
+    sSeq = 0;
+    all.emps.forEach(e => addSetupRow(e.name, e.targetSalary, e.laborIns, e.healthIns, e.healthType, e.mealIns, e.pensionRate, e.role, e.hourlyRate));
+    if (all.month) document.getElementById('f-month').value = all.month;
+    buildFill();
+    goTab('fill');
+    document.getElementById('import-code-box').style.display = 'none';
+    document.getElementById('import-code-text').value = '';
+    alert('✅ 還原成功！');
+  } catch(e) {
+    alert('資料碼格式錯誤，請重新複製。');
+  }
+}
+
 function clearFillData() {
-  if (!confirm('確定要清除本月所有填寫資料嗎？此動作無法復原。')) return;
+  const btn = document.getElementById('clear-fill-btn');
+  if (btn.dataset.confirming !== '1') {
+    btn.dataset.confirming = '1';
+    btn.textContent = '⚠️ 確定清除？再按一次確認';
+    btn.style.background = 'var(--accent)';
+    btn.style.color = 'white';
+    setTimeout(() => {
+      if (btn.dataset.confirming === '1') {
+        btn.dataset.confirming = '0';
+        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg> 清除本月填寫';
+        btn.style.background = 'white';
+        btn.style.color = 'var(--accent)';
+      }
+    }, 3000);
+    return;
+  }
+  btn.dataset.confirming = '0';
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg> 清除本月填寫';
+  btn.style.background = 'white';
+  btn.style.color = 'var(--accent)';
   localStorage.removeItem(FK);
   localStorage.removeItem('att_month');
-  buildFill();
+  // 清除人員異動
+  document.getElementById('chg-rows').innerHTML = '';
+  chgSeq = 0;
   noneState.chg = false;
-  noneState.holiday = false;
   document.getElementById('chg-none-btn')?.classList.remove('active');
+  // 清除特休
+  document.getElementById('al-rows').innerHTML = '';
+  alSeq = 0;
+  // 清除國定補薪
+  document.querySelectorAll('.holiday-emp-item.checked').forEach(item => {
+    item.classList.remove('checked');
+    const cb = item.querySelector('input[type="checkbox"]');
+    if (cb) cb.checked = false;
+    const din = item.querySelector('.holiday-days-in');
+    if (din) din.value = '';
+  });
+  noneState.holiday = false;
   document.getElementById('holiday-none-btn')?.classList.remove('active');
   document.getElementById('fill-warning').style.display = 'none';
+  buildFill();
 }
 
 const noneState = { chg: false, holiday: false };
@@ -1609,11 +1725,12 @@ function buildSummary() {
 function addSetupRow(name, targetSalary, laborIns, healthIns, healthType, mealIns, pensionRate, role, hourlyRate, dbId) {
   sSeq++;
   const id = sSeq;
-  // 如果非最高權限，鎖定設定頁所有輸入
-  const forceReadonly = !window._isAdmin;
   const el = document.createElement('div');
   el.className = 'setup-row'; el.id = 'sr'+id;
-  const isNew = !name; // 新增的預設解鎖，已有資料的預設鎖定
+  if (dbId) el.dataset.dbId = dbId;
+  // 非 admin 強制鎖定所有欄位
+  const forceReadonly = !window._isAdmin;
+  const isNew = !name && !forceReadonly;
   el.innerHTML = `
     <span class="row-drag-handle" title="拖曳排序">⠿</span>
     <span class="row-num"></span>
@@ -1774,7 +1891,26 @@ function autoSave() {
     };
   }).filter(e => e.name);
   persist({name:store, manager:mgr}, emps);
-  // 員工資料不在這裡自動同步，避免重複觸發
+
+  // 員工資料 debounce 存 Supabase（僅 admin）
+  if (window._isAdmin) {
+    if (window._empSaveTimer) clearTimeout(window._empSaveTimer);
+    window._empSaveTimer = setTimeout(() => {
+      emps.forEach(e => {
+        if (!e.db_id || !e.name) return;
+        window._saveEmployee(e.db_id, {
+          name: e.name,
+          target_salary: e.targetSalary,
+          labor_ins: e.laborIns,
+          health_ins: e.healthIns,
+          health_dependents: e.healthType === 'dependent' ? 1 : 0,
+          meal_allowance: e.mealIns,
+          hourly_rate: e.hourlyRate,
+          role: e.role,
+        });
+      });
+    }, 2000);
+  }
 
   // 即時同步填寫頁（若已建立）
   if (empList.length || emps.length) {
@@ -2129,9 +2265,9 @@ function rebuildFillCards(snapshot) {
 
 /* ── FILL ── */
 async function buildFill() {
-  const d = load();
-  document.getElementById('f-store').textContent = d.store.name||'（未設定）';
-  empList = d.emps;
+  const storeName = window._storeName || '';
+  document.getElementById('f-store').textContent = storeName || '（未設定）';
+
   const c = document.getElementById('fill-cards');
   c.innerHTML = '';
   if (!empList.length) {
@@ -2140,24 +2276,20 @@ async function buildFill() {
   }
   empList.forEach((e, i) => c.appendChild(makeCard(e, i+1)));
   if (!document.querySelector('.holiday-item')) addHolidayRow();
-  // 從 Supabase 讀取當月資料，fallback 到 localStorage
-  (async () => {
-    try {
-      const month = document.getElementById('f-month')?.value;
-      if (window._loadAttendance && month) {
-        const cloudData = await window._loadAttendance(month);
-        if (cloudData) {
-          restoreFill(cloudData);
-          updateSum();
-          return;
-        }
+
+  // 從 Supabase 讀出勤資料
+  try {
+    const month = document.getElementById('f-month')?.value;
+    if (window._loadAttendance && month) {
+      const cloudData = await window._loadAttendance(month);
+      if (cloudData) {
+        restoreFill(cloudData);
+        updateSum();
+        return;
       }
-      // fallback: localStorage
-      const saved = localStorage.getItem(FK);
-      if (saved) restoreFill(JSON.parse(saved));
-    } catch(e) {}
-    updateSum();
-  })();
+    }
+  } catch(e) { console.error('雲端載入失敗', e); }
+  updateSum();
 }
 
 function initial(name) { return (name||'?').slice(0,1); }
@@ -2321,7 +2453,13 @@ function addAnnualLeaveRow() {
     </div>
     <div id="alcal${alSeq}"></div>`;
   document.getElementById('al-rows').appendChild(row);
-  buildCalendar(aid, document.getElementById('alcal'+alSeq));
+  buildCalendar(aid, document.getElementById('alcal'+alSeq), () => updateSum());
+  // 員工選擇也要觸發存檔
+  setTimeout(() => {
+    const sel = document.getElementById('aln'+alSeq);
+    if (sel) sel.addEventListener('change', () => updateSum());
+  }, 100);
+  updateSum();
 }
 
 function getAnnualLeaveData() {
@@ -2524,9 +2662,10 @@ function renderDateArea(lid, mode) {
 const calState = {};
 const alCalState = {};
 
-function buildCalendar(lid, area) {
+function buildCalendar(lid, area, onChangeCallback) {
   const now = new Date();
   calState[lid] = calState[lid] || { year: now.getFullYear(), month: now.getMonth(), selected: [], collapsed: false };
+  if (onChangeCallback) calState[lid]._onChange = onChangeCallback;
   const st = calState[lid];
 
   const wrap = document.createElement('div');
@@ -2632,6 +2771,8 @@ function toggleCalDay(lid, dateStr) {
   const idx = st.selected.indexOf(dateStr);
   if (idx >= 0) st.selected.splice(idx,1); else st.selected.push(dateStr);
   st._render();
+  updateSum();
+  if (st._onChange) st._onChange();
 }
 function calMove(lid, dir) {
   const st = calState[lid]; if (!st) return;
@@ -2771,22 +2912,13 @@ function updateSum() {
   document.getElementById('s-l').textContent = l;
   document.getElementById('s-o').textContent = o;
   document.getElementById('s-p').textContent = p;
-  // 即時存填寫資料
+  // 即時存到 Supabase（debounce 2秒）
   try {
     const snap = snapshotFill();
-    localStorage.setItem(FK, JSON.stringify(snap));
-    // 同步到 Supabase（debounce 3秒）
     if (window._saveTimer) clearTimeout(window._saveTimer);
     window._saveTimer = setTimeout(async () => {
-      if (window._saveAttendance) {
-        try {
-          await window._saveAttendance(snap);
-          console.log('✅ 出勤資料已儲存到雲端');
-        } catch(err) {
-          console.error('❌ 儲存失敗', err);
-        }
-      }
-    }, 3000);
+      if (window._saveAttendance) await window._saveAttendance(snap);
+    }, 2000);
   } catch(e) {}
 }
 
@@ -2902,6 +3034,12 @@ function addChgRow() {
     </div>`;
   container.appendChild(row);
   syncNoneBtnState('chg');
+  // 綁定所有輸入觸發存檔
+  row.querySelectorAll('input, select').forEach(el => {
+    el.addEventListener('change', () => updateSum());
+    el.addEventListener('input', () => updateSum());
+  });
+  updateSum();
 }
 
 function onChgStatus(cid) {
@@ -3135,9 +3273,8 @@ function closeWelcome() {
   // 設定月份
   document.getElementById('f-month').value = new Date().toISOString().slice(0,7);
   document.getElementById('f-month').addEventListener('change', function() {
-    localStorage.setItem('att_month', this.value);
-    // 切換月份時重新載入雲端資料
-    buildFill();
+    // 切換月份重新讀雲端資料
+    (async () => { await buildFill(); })();
   });
 
   // 事件委派：國定補薪天數輸入即時存檔
@@ -3145,7 +3282,7 @@ function closeWelcome() {
     if (e.target.classList.contains('holiday-days-in')) updateSum();
   });
 
-  // 從 Supabase 載入資料
+  // 從 Supabase 初始化
   if (window._initFromDB) {
     window._initFromDB();
   }
