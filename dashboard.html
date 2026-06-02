@@ -182,7 +182,7 @@ window.loadDashboard = async function() {
   grid.innerHTML = '<div class="loading">載入中…</div>';
 
   // 取得所有店家
-  const { data: stores } = await supabase.from('stores').select('*').order('name');
+  const { data: stores } = await supabase.from('stores').select('*').order('sort_order');
   if (!stores || stores.length === 0) {
     grid.innerHTML = '<div class="loading">尚無店家，請點右上角「新增店家」開始建立。</div>';
     document.getElementById('stat-total').textContent = 0;
@@ -230,7 +230,6 @@ window.loadDashboard = async function() {
       </div>
       <div class="store-actions">
         <button class="action-btn primary" onclick="goToStore('${store.id}', '${store.name}')">查看出勤詳情</button>
-        <button class="action-btn" onclick="goToSetup('${store.id}', '${store.name}')">員工設定</button>
       </div>
     `;
     grid.appendChild(card);

@@ -602,7 +602,7 @@ body::before {
   <div class="view" id="v-setup">
     <div class="hint"><strong>只需設定一次</strong>，之後每個月打開檔案員工名單自動帶入。</div>
     <div class="section-hint">💡 輸入店名與員工資料後會自動儲存。若有人事異動（調薪、離職、勞健保級距變更），直接回此頁修改即可，更改後會即時同步到填寫頁面。<br>若該員工有餐費補助（如央廚同仁），請在進階設定勾選「投保含餐費」，系統會以目標薪資 +2000 計算投保級距，並在每月填寫顯示餐費補助欄位。<br>每位員工資料預設為 🔒 鎖定狀態，防止誤觸修改。需要編輯時點 🔒 解鎖，修改完畢後再點 🔓 鎖回。</div>
-    <div class="fld"><label>店名（分店）</label><input type="text" id="s-store" placeholder="例：信義店" oninput="autoSave()" onblur="autoSave()" /></div>
+    <input type="hidden" id="s-store" />
     <div style="margin-top:20px;"></div>
     <div class="setup-rows" id="setup-rows"></div>
     <button class="add-row-btn" onclick="addSetupRow()">
