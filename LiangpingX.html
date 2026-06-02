@@ -547,7 +547,7 @@ body::before {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>
         列印 / 存成 PDF
       </button>
-      <button class="print-btn" onclick="clearFillData()" style="background:white;color:var(--accent);border:1px solid var(--accent);">
+      <button id="clear-fill-btn" class="print-btn" onclick="clearFillData()" style="background:white;color:var(--accent);border:1px solid var(--accent);">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
         清除本月填寫
       </button>
@@ -718,15 +718,48 @@ function onTargetSalaryChange(rowId) {
   autoSave();
 }
 function clearFillData() {
-  if (!confirm('確定要清除本月所有填寫資料嗎？此動作無法復原。')) return;
+  const btn = document.getElementById('clear-fill-btn');
+  if (btn.dataset.confirming !== '1') {
+    btn.dataset.confirming = '1';
+    btn.textContent = '⚠️ 確定清除？再按一次確認';
+    btn.style.background = 'var(--accent)';
+    btn.style.color = 'white';
+    setTimeout(() => {
+      if (btn.dataset.confirming === '1') {
+        btn.dataset.confirming = '0';
+        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg> 清除本月填寫';
+        btn.style.background = 'white';
+        btn.style.color = 'var(--accent)';
+      }
+    }, 3000);
+    return;
+  }
+  btn.dataset.confirming = '0';
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg> 清除本月填寫';
+  btn.style.background = 'white';
+  btn.style.color = 'var(--accent)';
   localStorage.removeItem(FK);
   localStorage.removeItem('att_month');
-  buildFill();
+  // 清除人員異動
+  document.getElementById('chg-rows').innerHTML = '';
+  chgSeq = 0;
   noneState.chg = false;
-  noneState.holiday = false;
   document.getElementById('chg-none-btn')?.classList.remove('active');
+  // 清除特休
+  document.getElementById('al-rows').innerHTML = '';
+  alSeq = 0;
+  // 清除國定補薪
+  document.querySelectorAll('.holiday-emp-item.checked').forEach(item => {
+    item.classList.remove('checked');
+    const cb = item.querySelector('input[type="checkbox"]');
+    if (cb) cb.checked = false;
+    const din = item.querySelector('.holiday-days-in');
+    if (din) din.value = '';
+  });
+  noneState.holiday = false;
   document.getElementById('holiday-none-btn')?.classList.remove('active');
   document.getElementById('fill-warning').style.display = 'none';
+  buildFill();
 }
 
 const noneState = { chg: false, holiday: false };
@@ -2161,6 +2194,11 @@ function addAnnualLeaveRow() {
     <div id="alcal${alSeq}"></div>`;
   document.getElementById('al-rows').appendChild(row);
   buildCalendar(aid, document.getElementById('alcal'+alSeq), () => updateSum());
+  // 員工選擇也要觸發存檔
+  setTimeout(() => {
+    const sel = document.getElementById('aln'+alSeq);
+    if (sel) sel.addEventListener('change', () => updateSum());
+  }, 100);
   updateSum();
 }
 
