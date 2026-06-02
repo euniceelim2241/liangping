@@ -1770,10 +1770,7 @@ function autoSave() {
     };
   }).filter(e => e.name);
   persist({name:store, manager:mgr}, emps);
-  // 同步到 Supabase（僅 admin）
-  if (window._isAdmin && window._saveEmployee) {
-    emps.forEach(e => window._saveEmployee(e));
-  }
+  // 員工資料不在這裡自動同步，避免重複觸發
 
   // 即時同步填寫頁（若已建立）
   if (empList.length || emps.length) {
@@ -2776,8 +2773,15 @@ function updateSum() {
     localStorage.setItem(FK, JSON.stringify(snap));
     // 同步到 Supabase（debounce 3秒）
     if (window._saveTimer) clearTimeout(window._saveTimer);
-    window._saveTimer = setTimeout(() => {
-      if (window._saveAttendance) window._saveAttendance(snap);
+    window._saveTimer = setTimeout(async () => {
+      if (window._saveAttendance) {
+        try {
+          await window._saveAttendance(snap);
+          console.log('✅ 出勤資料已儲存到雲端');
+        } catch(err) {
+          console.error('❌ 儲存失敗', err);
+        }
+      }
     }, 3000);
   } catch(e) {}
 }
