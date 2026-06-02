@@ -6,143 +6,95 @@
 <title>月度出勤統計表</title>
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+const SB_URL = 'https://bsamoqlwdssdaoyxraii.supabase.co';
+const SB_KEY = 'sb_publishable_dLVyhYBGldwOrUnenF4GTw_4pD3C3qY';
+const sb = createClient(SB_URL, SB_KEY);
 
-const SUPABASE_URL = 'https://bsamoqlwdssdaoyxraii.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_dLVyhYBGldwOrUnenF4GTw_4pD3C3qY';
-window._sb = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// 從 session 取得登入資訊
 const role      = sessionStorage.getItem('role');
 const storeId   = sessionStorage.getItem('view_store_id') || sessionStorage.getItem('store_id');
 const storeName = sessionStorage.getItem('view_store_name') || sessionStorage.getItem('store_name');
 const isAdmin   = role === 'admin';
-const adminView = sessionStorage.getItem('admin_view') === '1';
 
-// 沒登入就跳回登入頁
-if (!role) window.location.href = 'login.html';
+if (!role) { window.location.href = 'login.html'; }
 
+window._SB        = sb;
 window._storeId   = storeId;
 window._storeName = storeName;
 window._isAdmin   = isAdmin;
 
-// ── 從 Supabase 載入員工 ──
-async function loadEmployees() {
+// 載入員工
+window._loadEmps = async () => {
   if (!storeId) return [];
-  const { data } = await window._sb.from('employees').select('*').eq('store_id', storeId).order('created_at');
-  return (data || []).map((e, i) => ({
-    id: i + 1,
-    db_id: e.id,
-    name: e.name,
-    targetSalary: e.target_salary,
-    laborIns: e.labor_ins,
-    healthIns: e.health_ins,
-    healthType: e.health_dependents > 0 ? 'dependent' : 'personal',
-    mealIns: e.meal_allowance,
-    pensionRate: 0,
-    role: e.role || 'staff',
-    hourlyRate: e.hourly_rate || 0,
+  const { data } = await sb.from('employees').select('*').eq('store_id', storeId).order('created_at');
+  return (data||[]).map((e,i) => ({
+    id: i+1, db_id: e.id, name: e.name,
+    targetSalary: e.target_salary, laborIns: e.labor_ins,
+    healthIns: e.health_ins, healthType: e.health_dependents>0?'dependent':'personal',
+    mealIns: e.meal_allowance, pensionRate: 0,
+    role: e.role||'staff', hourlyRate: e.hourly_rate||0,
   }));
-}
-
-// ── 儲存員工到 Supabase（僅 admin）──
-window._saveEmployee = async function(dbId, fields) {
-  if (!isAdmin || !dbId) return;
-  await window._sb.from('employees').update(fields).eq('id', dbId);
 };
 
-// ── 新增員工到 Supabase（僅 admin）──
-window._addEmployee = async function(emp) {
-  if (!isAdmin || !storeId) return null;
-  const { data } = await window._sb.from('employees').insert({
-    store_id: storeId,
-    name: emp.name,
-    target_salary: emp.targetSalary || 0,
-    labor_ins: emp.laborIns || 0,
-    health_ins: emp.healthIns || 0,
-    health_dependents: emp.healthType === 'dependent' ? 1 : 0,
-    meal_allowance: emp.mealIns || false,
-    hourly_rate: emp.hourlyRate || 0,
-    role: emp.role || 'staff',
-  }).select().single();
-  return data;
-};
-
-// ── 刪除員工（僅 admin）──
-window._deleteEmployee = async function(dbId) {
-  if (!isAdmin || !dbId) return;
-  await window._sb.from('employees').delete().eq('id', dbId);
-};
-
-// ── 存出勤資料 ──
-window._saveAttendance = async function(fillData) {
-  if (!storeId) return;
+// 存出勤
+window._saveAtt = async (data) => {
   const month = document.getElementById('f-month')?.value;
-  if (!month) return;
-  const { error } = await window._sb.from('attendance').upsert({
-    store_id: storeId,
-    month: month,
-    data: fillData,
-    submitted: true,
-    updated_at: new Date().toISOString()
-  }, { onConflict: 'store_id,month' });
-  if (error) console.error('存檔失敗', error);
-  else console.log('✅ 已儲存到雲端');
+  if (!storeId || !month) return;
+  const { error } = await sb.from('attendance').upsert(
+    { store_id: storeId, month, data, submitted: true, updated_at: new Date().toISOString() },
+    { onConflict: 'store_id,month' }
+  );
+  if (!error) console.log('✅ 已存雲端');
+  else console.error('❌', error.message);
 };
 
-// ── 讀出勤資料 ──
-window._loadAttendance = async function(month) {
-  if (!storeId) return null;
-  try {
-    const { data, error } = await window._sb.from('attendance').select('data').eq('store_id', storeId).eq('month', month).single();
-    if (error) return null;
-    return data?.data || null;
-  } catch(e) { return null; }
+// 讀出勤
+window._loadAtt = async (month) => {
+  if (!storeId || !month) return null;
+  const { data } = await sb.from('attendance').select('data').eq('store_id', storeId).eq('month', month).single();
+  return data?.data || null;
 };
 
-// ── 初始化 ──
-window._initFromDB = async function() {
+// 存員工（僅 admin）
+window._saveEmp = async (dbId, fields) => {
+  if (!isAdmin || !dbId) return;
+  await sb.from('employees').update(fields).eq('id', dbId);
+};
+
+// 初始化
+window._init = async () => {
   // 設店名
-  const sEl = document.getElementById('s-store');
-  if (sEl) sEl.value = storeName || '';
-  const fEl = document.getElementById('f-store');
-  if (fEl) fEl.textContent = storeName || '';
-
-  // 設標題
-  const hdrEl = document.getElementById('hdr-store-name');
-  if (hdrEl) hdrEl.textContent = (storeName || '') + ' — 月度出勤統計表';
+  ['s-store','f-store'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.tagName==='INPUT' ? el.value=storeName||'' : el.textContent=storeName||''; }
+  });
+  const hdr = document.getElementById('hdr-store-name');
+  if (hdr) hdr.textContent = (storeName||'') + ' — 月度出勤統計表';
 
   // 設月份
-  const now = new Date();
-  const monthVal = now.toISOString().slice(0, 7);
-  const monthEl = document.getElementById('f-month');
-  if (monthEl) monthEl.value = monthVal;
-
-  // 載入員工
-  const emps = await loadEmployees();
-  emps.forEach(e => addSetupRow(e.name, e.targetSalary, e.laborIns, e.healthIns, e.healthType, e.mealIns, e.pensionRate, e.role, e.hourlyRate, e.db_id));
+  const mEl = document.getElementById('f-month');
+  if (mEl) mEl.value = new Date().toISOString().slice(0,7);
 
   // 非 admin 隱藏設定 tab
   if (!isAdmin) {
-    const setupTab = document.getElementById('t-setup');
-    if (setupTab) setupTab.style.display = 'none';
+    const t = document.getElementById('t-setup');
+    if (t) t.style.display = 'none';
   }
 
   // admin view 加返回按鈕
-  if (adminView) {
-    const hdr = document.querySelector('.hdr');
-    if (hdr) {
+  if (sessionStorage.getItem('admin_view')==='1') {
+    const hdrEl = document.querySelector('.hdr');
+    if (hdrEl) {
       const btn = document.createElement('button');
       btn.textContent = '← 返回總覽';
       btn.style.cssText = 'background:none;border:1px solid #999;border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer;color:#555;font-family:inherit;';
-      btn.onclick = () => {
-        sessionStorage.removeItem('admin_view');
-        sessionStorage.removeItem('view_store_id');
-        sessionStorage.removeItem('view_store_name');
-        window.location.href = 'dashboard.html';
-      };
-      hdr.appendChild(btn);
+      btn.onclick = () => { sessionStorage.removeItem('admin_view'); sessionStorage.removeItem('view_store_id'); sessionStorage.removeItem('view_store_name'); window.location.href='dashboard.html'; };
+      hdrEl.appendChild(btn);
     }
   }
+
+  // 載入員工並建立填寫頁
+  const emps = await window._loadEmps();
+  emps.forEach(e => addSetupRow(e.name, e.targetSalary, e.laborIns, e.healthIns, e.healthType, e.mealIns, e.pensionRate, e.role, e.hourlyRate, e.db_id));
 
   if (emps.length > 0) {
     await buildFill();
@@ -825,13 +777,8 @@ const LEAVE_TYPES = ['病假','事假','生理假','喪假','家庭照顧假','�
 const SK = 'att_store', EK = 'att_emps', FK = 'att_fill';
 let empList = [], sSeq = 0, lvSeq = 0;
 
-function load() {
-  // 員工資料改從 Supabase 讀，這裡只回傳 store 名稱
-  return { store: { name: window._storeName || '' }, emps: [] };
-}
-function persist(store, emps) {
-  // 員工資料改存 Supabase，不存 localStorage
-}
+function load() { return { store:{ name: window._storeName||'' }, emps:[] }; }
+function persist(store, emps) { /* 改存 Supabase */ }
 /* ── INSURANCE BRACKET LOOKUP ── */
 const LABOR_BRACKETS = [
   [26400,26400],[26700,26700],[27600,27600],[28800,28800],
@@ -1728,9 +1675,7 @@ function addSetupRow(name, targetSalary, laborIns, healthIns, healthType, mealIn
   const el = document.createElement('div');
   el.className = 'setup-row'; el.id = 'sr'+id;
   if (dbId) el.dataset.dbId = dbId;
-  // 非 admin 強制鎖定所有欄位
-  const forceReadonly = !window._isAdmin;
-  const isNew = !name && !forceReadonly;
+  const isNew = !name && window._isAdmin;
   el.innerHTML = `
     <span class="row-drag-handle" title="拖曳排序">⠿</span>
     <span class="row-num"></span>
@@ -1894,19 +1839,15 @@ function autoSave() {
 
   // 員工資料 debounce 存 Supabase（僅 admin）
   if (window._isAdmin) {
-    if (window._empSaveTimer) clearTimeout(window._empSaveTimer);
-    window._empSaveTimer = setTimeout(() => {
+    if (window._empTimer) clearTimeout(window._empTimer);
+    window._empTimer = setTimeout(() => {
       emps.forEach(e => {
-        if (!e.db_id || !e.name) return;
-        window._saveEmployee(e.db_id, {
-          name: e.name,
-          target_salary: e.targetSalary,
-          labor_ins: e.laborIns,
-          health_ins: e.healthIns,
-          health_dependents: e.healthType === 'dependent' ? 1 : 0,
-          meal_allowance: e.mealIns,
-          hourly_rate: e.hourlyRate,
-          role: e.role,
+        if (!e.db_id) return;
+        window._saveEmp(e.db_id, {
+          name: e.name, target_salary: e.targetSalary,
+          labor_ins: e.laborIns, health_ins: e.healthIns,
+          health_dependents: e.healthType==='dependent'?1:0,
+          meal_allowance: e.mealIns, hourly_rate: e.hourlyRate, role: e.role,
         });
       });
     }, 2000);
@@ -2265,9 +2206,7 @@ function rebuildFillCards(snapshot) {
 
 /* ── FILL ── */
 async function buildFill() {
-  const storeName = window._storeName || '';
-  document.getElementById('f-store').textContent = storeName || '（未設定）';
-
+  document.getElementById('f-store').textContent = window._storeName||'（未設定）';
   const c = document.getElementById('fill-cards');
   c.innerHTML = '';
   if (!empList.length) {
@@ -2276,19 +2215,14 @@ async function buildFill() {
   }
   empList.forEach((e, i) => c.appendChild(makeCard(e, i+1)));
   if (!document.querySelector('.holiday-item')) addHolidayRow();
-
   // 從 Supabase 讀出勤資料
   try {
     const month = document.getElementById('f-month')?.value;
-    if (window._loadAttendance && month) {
-      const cloudData = await window._loadAttendance(month);
-      if (cloudData) {
-        restoreFill(cloudData);
-        updateSum();
-        return;
-      }
+    if (window._loadAtt && month) {
+      const cloud = await window._loadAtt(month);
+      if (cloud) { restoreFill(cloud); updateSum(); return; }
     }
-  } catch(e) { console.error('雲端載入失敗', e); }
+  } catch(e) { console.error('讀取失敗', e); }
   updateSum();
 }
 
@@ -2912,12 +2846,12 @@ function updateSum() {
   document.getElementById('s-l').textContent = l;
   document.getElementById('s-o').textContent = o;
   document.getElementById('s-p').textContent = p;
-  // 即時存到 Supabase（debounce 2秒）
+  // debounce 2秒存到 Supabase
   try {
     const snap = snapshotFill();
-    if (window._saveTimer) clearTimeout(window._saveTimer);
-    window._saveTimer = setTimeout(async () => {
-      if (window._saveAttendance) await window._saveAttendance(snap);
+    if (window._attTimer) clearTimeout(window._attTimer);
+    window._attTimer = setTimeout(() => {
+      if (window._saveAtt) window._saveAtt(snap);
     }, 2000);
   } catch(e) {}
 }
@@ -3270,22 +3204,16 @@ function closeWelcome() {
 
 /* ── INIT ── */
 (function(){
-  // 設定月份
-  document.getElementById('f-month').value = new Date().toISOString().slice(0,7);
-  document.getElementById('f-month').addEventListener('change', function() {
-    // 切換月份重新讀雲端資料
+  // 月份切換重新載入
+  document.getElementById('f-month').addEventListener('change', () => {
     (async () => { await buildFill(); })();
   });
-
-  // 事件委派：國定補薪天數輸入即時存檔
-  document.getElementById('holiday-block')?.addEventListener('input', function(e) {
+  // 國定補薪存檔
+  document.getElementById('holiday-block')?.addEventListener('input', e => {
     if (e.target.classList.contains('holiday-days-in')) updateSum();
   });
-
   // 從 Supabase 初始化
-  if (window._initFromDB) {
-    window._initFromDB();
-  }
+  if (window._init) window._init();
 })();
 </script>
 </body>
