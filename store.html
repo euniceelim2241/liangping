@@ -2224,8 +2224,10 @@ async function buildFill() {
   // 從 Supabase 讀出勤資料
   try {
     const month = document.getElementById('f-month')?.value;
+    console.log('buildFill 讀取月份:', month, '店:', window._storeId);
     if (window._loadAtt && month) {
       const cloud = await window._loadAtt(month);
+      console.log('雲端資料:', cloud ? '有' : '無');
       if (cloud) { restoreFill(cloud); updateSum(); return; }
     }
   } catch(e) { console.error('讀取失敗', e); }
@@ -2852,13 +2854,10 @@ function updateSum() {
   document.getElementById('s-l').textContent = l;
   document.getElementById('s-o').textContent = o;
   document.getElementById('s-p').textContent = p;
-  // debounce 2秒存到 Supabase
+  // 立即存到 Supabase
   try {
     const snap = snapshotFill();
-    if (window._attTimer) clearTimeout(window._attTimer);
-    window._attTimer = setTimeout(() => {
-      if (window._saveAtt) window._saveAtt(snap);
-    }, 2000);
+    if (window._saveAtt) window._saveAtt(snap);
   } catch(e) {}
 }
 
