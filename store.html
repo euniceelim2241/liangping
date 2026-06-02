@@ -48,7 +48,9 @@ window._saveAttendance = async function(fillData) {
 // 讀取出勤資料從 Supabase
 window._loadAttendance = async function(month) {
   if (!storeId) return null;
-  const { data } = await window._sb.from('attendance').select('data').eq('store_id', storeId).eq('month', month).single();
+  const { data, error } = await window._sb.from('attendance').select('data').eq('store_id', storeId).eq('month', month).single();
+  if (error) { console.log('載入出勤資料失敗', error); return null; }
+  // data 欄位本身就是 jsonb，Supabase 回傳時是 { data: { ...填寫內容... } }
   return data?.data || null;
 };
 
@@ -103,8 +105,10 @@ window._initFromDB = async function() {
   if (monthEl) monthEl.value = monthVal;
 
   // 如果有員工就去填寫頁；否則去設定頁
-  if (emps.length > 0) { buildFill(); goTab('fill'); }
-  else goTab('setup');
+  if (emps.length > 0) {
+    await buildFill();
+    goTab('fill');
+  } else goTab('setup');
 
   // 設定頁讀寫權限：非 admin 只能看出勤頁，不能改設定
   if (!isAdmin) {
@@ -2124,7 +2128,7 @@ function rebuildFillCards(snapshot) {
 }
 
 /* ── FILL ── */
-function buildFill() {
+async function buildFill() {
   const d = load();
   document.getElementById('f-store').textContent = d.store.name||'（未設定）';
   empList = d.emps;
