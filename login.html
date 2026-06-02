@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>出勤系統 — 登入</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #1a1a1a; --ink-mid: #3a3a3a; --ink-light: #555; --ink-faint: #999;
+  --paper: #faf8f4; --paper-warm: #f3efe8; --paper-line: #e8e2d8;
+  --accent: #8b3a2a; --accent-pale: #f5e8e5;
+  --green: #2e7d52; --green-pale: #edf7f1; --green-border: #a8d5ba;
+  --r: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Noto Sans TC', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: linear-gradient(var(--paper-line) 1px,transparent 1px),linear-gradient(90deg,var(--paper-line) 1px,transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.25;
+  pointer-events: none;
+  z-index: 0;
+}
+.card {
+  position: relative; z-index: 1;
+  background: white;
+  border: 1px solid var(--paper-line);
+  border-radius: 16px;
+  padding: 40px 36px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.07);
+}
+.logo {
+  border-top: 3px solid var(--ink);
+  padding-top: 16px;
+  margin-bottom: 32px;
+}
+.logo-label { font-size: 10px; letter-spacing: 0.22em; color: var(--accent); margin-bottom: 4px; }
+.logo-title { font-family: 'Noto Serif TC', serif; font-size: 22px; font-weight: 700; }
+.logo-sub { font-size: 11px; color: var(--ink-light); margin-top: 4px; }
+
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 10px; letter-spacing: 0.13em; color: var(--ink-light); text-transform: uppercase; margin-bottom: 6px; }
+.field input {
+  width: 100%;
+  padding: 13px 16px;
+  border: 1px solid var(--paper-line);
+  border-radius: var(--r);
+  font-family: 'Noto Sans TC', sans-serif;
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--paper);
+  outline: none;
+  transition: border-color .2s;
+  letter-spacing: 0.05em;
+}
+.field input:focus { border-color: var(--ink); background: white; }
+.field input::placeholder { color: var(--ink-faint); letter-spacing: 0; }
+
+.btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--ink);
+  color: white;
+  border: none;
+  border-radius: var(--r);
+  font-family: 'Noto Sans TC', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .2s;
+  letter-spacing: 0.08em;
+  margin-top: 8px;
+}
+.btn:hover { background: var(--accent); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.err {
+  background: var(--accent-pale);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--r) var(--r) 0;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--accent);
+  margin-top: 14px;
+  display: none;
+}
+
+.hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink-faint);
+  margin-top: 20px;
+  line-height: 1.7;
+}
+
+@media (max-width: 480px) {
+  .card { padding: 32px 24px; }
+}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-label">Human Resources · Attendance</div>
+    <div class="logo-title">月度出勤系統</div>
+    <div class="logo-sub">請輸入身分證號碼登入</div>
+  </div>
+
+  <div class="field">
+    <label>身分證號碼</label>
+    <input type="text" id="id-input" placeholder="A123456789" maxlength="10" autocomplete="off" autocapitalize="characters" />
+  </div>
+
+  <button class="btn" id="login-btn" onclick="doLogin()">登入</button>
+  <div class="err" id="err-msg">身分證號碼不正確，請確認後再試。</div>
+
+  <div class="hint">如有問題請聯繫管理員</div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const SUPABASE_URL = 'https://bsamoqlwdssdaoyxraii.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_dLVyhYBGldwOrUnenF4GTw_4pD3C3qY';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// 最高權限帳號（身分證 + 密碼）
+const ADMIN_ID = 'ADMIN';
+const ADMIN_PWD = 'liangping2024';
+
+window.doLogin = async function() {
+  const idNum = document.getElementById('id-input').value.trim().toUpperCase();
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('err-msg');
+  err.style.display = 'none';
+
+  if (!idNum) return;
+  btn.disabled = true;
+  btn.textContent = '驗證中…';
+
+  // 最高權限登入（特殊帳號）
+  if (idNum === ADMIN_ID) {
+    const pwd = prompt('請輸入最高權限密碼：');
+    if (pwd === ADMIN_PWD) {
+      sessionStorage.setItem('role', 'admin');
+      sessionStorage.setItem('name', '管理員');
+      window.location.href = 'dashboard.html';
+      return;
+    } else {
+      err.textContent = '密碼錯誤。';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = '登入';
+      return;
+    }
+  }
+
+  // 一般管理人員登入
+  const { data, error } = await supabase
+    .from('users')
+    .select('*, stores(name)')
+    .eq('id_number', idNum)
+    .single();
+
+  if (error || !data) {
+    err.textContent = '找不到此身分證號碼，請確認後再試。';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = '登入';
+    return;
+  }
+
+  sessionStorage.setItem('role', data.role);
+  sessionStorage.setItem('store_id', data.store_id);
+  sessionStorage.setItem('store_name', data.stores?.name || '');
+  sessionStorage.setItem('user_name', data.name || '');
+  window.location.href = 'store.html';
+};
+
+// Enter 鍵登入
+document.getElementById('id-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') window.doLogin();
+});
+</script>
+</body>
+</html>

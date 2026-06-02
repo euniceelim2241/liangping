@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>出勤系統 — 總覽後台</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #1a1a1a; --ink-mid: #3a3a3a; --ink-light: #555; --ink-faint: #999;
+  --paper: #faf8f4; --paper-warm: #f3efe8; --paper-line: #e8e2d8;
+  --accent: #8b3a2a; --accent-pale: #f5e8e5;
+  --green: #2e7d52; --green-pale: #edf7f1; --green-border: #a8d5ba;
+  --r: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Noto Sans TC', sans-serif; background: var(--paper); color: var(--ink); min-height: 100vh; }
+body::before {
+  content: ''; position: fixed; inset: 0;
+  background-image: linear-gradient(var(--paper-line) 1px,transparent 1px),linear-gradient(90deg,var(--paper-line) 1px,transparent 1px);
+  background-size: 40px 40px; opacity: 0.25; pointer-events: none; z-index: 0;
+}
+.wrap { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 32px 20px 80px; }
+
+.hdr { border-top: 3px solid var(--ink); padding: 20px 0 16px; margin-bottom: 28px; display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.hdr-left {}
+.hdr-label { font-size: 10px; letter-spacing: 0.22em; color: var(--accent); margin-bottom: 4px; }
+.hdr-title { font-family: 'Noto Serif TC', serif; font-size: 24px; font-weight: 700; }
+.hdr-sub { font-size: 11px; color: var(--ink-light); margin-top: 4px; }
+.logout-btn { background: none; border: 1px solid var(--ink-faint); border-radius: var(--r); padding: 8px 16px; font-family: 'Noto Sans TC', sans-serif; font-size: 12px; color: var(--ink-light); cursor: pointer; transition: all .18s; }
+.logout-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* 月份選擇 */
+.month-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+.month-bar label { font-size: 11px; color: var(--ink-light); letter-spacing: 0.1em; }
+.month-bar input[type="month"] { border: 1px solid var(--paper-line); border-radius: var(--r); background: white; font-family: 'Noto Sans TC', sans-serif; font-size: 14px; color: var(--ink); padding: 8px 12px; outline: none; }
+.month-bar input:focus { border-color: var(--ink); }
+.add-store-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border: 1px dashed var(--ink-faint); border-radius: var(--r); background: white; font-family: 'Noto Sans TC', sans-serif; font-size: 12px; color: var(--ink-light); cursor: pointer; transition: all .18s; margin-left: auto; }
+.add-store-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* 統計列 */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
+.stat-card { background: white; border: 1px solid var(--paper-line); border-radius: var(--r); padding: 16px 20px; text-align: center; }
+.stat-num { font-family: 'Noto Serif TC', serif; font-size: 32px; font-weight: 700; color: var(--ink); line-height: 1; margin-bottom: 4px; }
+.stat-num.done { color: var(--green); }
+.stat-num.pending { color: var(--accent); }
+.stat-lbl { font-size: 11px; color: var(--ink-light); letter-spacing: 0.08em; }
+
+/* 店家卡片 */
+.stores-grid { display: flex; flex-direction: column; gap: 10px; }
+.store-card { background: white; border: 1px solid var(--paper-line); border-radius: var(--r); overflow: hidden; cursor: pointer; transition: border-color .18s; }
+.store-card:hover { border-color: var(--ink); }
+.store-card.done { border-left: 3px solid var(--green); }
+.store-card.pending { border-left: 3px solid var(--ink-faint); }
+.store-card.partial { border-left: 3px solid var(--accent); }
+
+.store-hdr { display: flex; align-items: center; gap: 12px; padding: 14px 18px; }
+.store-name { font-size: 15px; font-weight: 500; flex: 1; }
+.store-badge { font-size: 11px; padding: 3px 12px; border-radius: 20px; flex-shrink: 0; }
+.badge-done { background: var(--green-pale); color: var(--green); border: 1px solid var(--green-border); }
+.badge-pending { background: var(--paper-warm); color: var(--ink-faint); border: 1px solid var(--paper-line); }
+.badge-partial { background: var(--accent-pale); color: var(--accent); border: 1px solid #e0b8b0; }
+
+.store-meta { padding: 0 18px 14px; font-size: 12px; color: var(--ink-light); display: flex; gap: 16px; }
+.store-meta span { display: flex; align-items: center; gap: 4px; }
+
+.store-actions { padding: 10px 18px; border-top: 1px solid var(--paper-line); background: var(--paper-warm); display: flex; gap: 10px; }
+.action-btn { flex: 1; padding: 9px 12px; border: 1px solid var(--paper-line); border-radius: var(--r); background: white; font-family: 'Noto Sans TC', sans-serif; font-size: 12px; color: var(--ink-mid); cursor: pointer; transition: all .18s; text-align: center; }
+.action-btn:hover { border-color: var(--ink); color: var(--ink); }
+.action-btn.primary { background: var(--ink); color: white; border-color: var(--ink); }
+.action-btn.primary:hover { background: var(--accent); border-color: var(--accent); }
+
+/* 新增店家 Modal */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: none; align-items: center; justify-content: center; padding: 20px; }
+.overlay.open { display: flex; }
+.modal { background: white; border-radius: 16px; padding: 32px 28px; width: 100%; max-width: 480px; }
+.modal-title { font-family: 'Noto Serif TC', serif; font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+.modal-field { margin-bottom: 14px; }
+.modal-field label { display: block; font-size: 10px; letter-spacing: 0.13em; color: var(--ink-light); text-transform: uppercase; margin-bottom: 5px; }
+.modal-field input { width: 100%; padding: 10px 12px; border: 1px solid var(--paper-line); border-radius: var(--r); font-family: 'Noto Sans TC', sans-serif; font-size: 14px; color: var(--ink); outline: none; }
+.modal-field input:focus { border-color: var(--ink); }
+.modal-hint { font-size: 11px; color: var(--ink-faint); margin-top: 4px; }
+.manager-list { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.manager-row { display: flex; gap: 8px; align-items: center; }
+.manager-row input { flex: 1; padding: 9px 12px; border: 1px solid var(--paper-line); border-radius: var(--r); font-family: 'Noto Sans TC', sans-serif; font-size: 13px; color: var(--ink); outline: none; }
+.manager-row input:focus { border-color: var(--ink); }
+.add-manager-btn { background: none; border: 1px dashed var(--ink-faint); border-radius: var(--r); padding: 7px 14px; font-size: 12px; color: var(--ink-light); cursor: pointer; margin-top: 6px; width: 100%; }
+.modal-actions { display: flex; gap: 10px; margin-top: 24px; }
+.modal-cancel { flex: 1; padding: 12px; border: 1px solid var(--paper-line); border-radius: var(--r); background: white; font-family: 'Noto Sans TC', sans-serif; font-size: 13px; cursor: pointer; }
+.modal-save { flex: 2; padding: 12px; background: var(--ink); color: white; border: none; border-radius: var(--r); font-family: 'Noto Sans TC', sans-serif; font-size: 13px; cursor: pointer; }
+.modal-save:hover { background: var(--accent); }
+
+.loading { text-align: center; padding: 60px 20px; color: var(--ink-light); font-size: 14px; }
+
+@media (max-width: 560px) {
+  .stat-row { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .stat-num { font-size: 24px; }
+  .store-meta { flex-wrap: wrap; gap: 8px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div class="hdr-left">
+      <div class="hdr-label">Human Resources · Attendance</div>
+      <div class="hdr-title">總覽後台</div>
+      <div class="hdr-sub" id="hdr-sub">載入中…</div>
+    </div>
+    <button class="logout-btn" onclick="logout()">登出</button>
+  </div>
+
+  <div class="month-bar">
+    <label>統計月份</label>
+    <input type="month" id="month-select" onchange="loadDashboard()" />
+    <button class="add-store-btn" onclick="openAddStore()">＋ 新增店家</button>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-card"><div class="stat-num done" id="stat-done">—</div><div class="stat-lbl">已完成</div></div>
+    <div class="stat-card"><div class="stat-num pending" id="stat-pending">—</div><div class="stat-lbl">未填寫</div></div>
+    <div class="stat-card"><div class="stat-num" id="stat-total">—</div><div class="stat-lbl">店家總數</div></div>
+  </div>
+
+  <div class="stores-grid" id="stores-grid">
+    <div class="loading">載入中…</div>
+  </div>
+</div>
+
+<!-- 新增店家 Modal -->
+<div class="overlay" id="add-store-overlay">
+  <div class="modal">
+    <div class="modal-title">新增店家</div>
+    <div class="modal-field">
+      <label>店名</label>
+      <input type="text" id="new-store-name" placeholder="例：信義店" />
+    </div>
+    <div class="modal-field">
+      <label>管理人員（身分證號碼）</label>
+      <div class="manager-list" id="manager-list">
+        <div class="manager-row">
+          <input type="text" placeholder="姓名" class="mgr-name" />
+          <input type="text" placeholder="身分證號碼" class="mgr-id" style="letter-spacing:0.05em;" />
+        </div>
+      </div>
+      <button class="add-manager-btn" onclick="addManagerRow()">＋ 新增管理人員</button>
+      <div class="modal-hint">最多 3 位，管理人員用身分證號碼登入</div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeAddStore()">取消</button>
+      <button class="modal-save" onclick="saveStore()">建立店家</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const SUPABASE_URL = 'https://bsamoqlwdssdaoyxraii.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_dLVyhYBGldwOrUnenF4GTw_4pD3C3qY';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// 權限檢查
+if (sessionStorage.getItem('role') !== 'admin') {
+  window.location.href = 'login.html';
+}
+
+// 設定月份預設值
+const now = new Date();
+const monthEl = document.getElementById('month-select');
+monthEl.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+document.getElementById('hdr-sub').textContent = `已登入：管理員`;
+
+window.logout = function() {
+  sessionStorage.clear();
+  window.location.href = 'login.html';
+};
+
+window.loadDashboard = async function() {
+  const month = document.getElementById('month-select').value;
+  const grid = document.getElementById('stores-grid');
+  grid.innerHTML = '<div class="loading">載入中…</div>';
+
+  // 取得所有店家
+  const { data: stores } = await supabase.from('stores').select('*').order('name');
+  if (!stores || stores.length === 0) {
+    grid.innerHTML = '<div class="loading">尚無店家，請點右上角「新增店家」開始建立。</div>';
+    document.getElementById('stat-total').textContent = 0;
+    document.getElementById('stat-done').textContent = 0;
+    document.getElementById('stat-pending').textContent = 0;
+    return;
+  }
+
+  // 取得本月出勤資料
+  const storeIds = stores.map(s => s.id);
+  const { data: attList } = await supabase
+    .from('attendance')
+    .select('store_id, submitted, updated_at')
+    .eq('month', month)
+    .in('store_id', storeIds);
+
+  const attMap = {};
+  (attList || []).forEach(a => { attMap[a.store_id] = a; });
+
+  let done = 0, pending = 0;
+  grid.innerHTML = '';
+
+  stores.forEach(store => {
+    const att = attMap[store.id];
+    const isSubmitted = att?.submitted;
+    const hasData = !!att;
+
+    if (isSubmitted) done++;
+    else pending++;
+
+    let statusClass = isSubmitted ? 'done' : (hasData ? 'partial' : 'pending');
+    let badgeClass = isSubmitted ? 'badge-done' : (hasData ? 'badge-partial' : 'badge-pending');
+    let badgeText = isSubmitted ? '已完成' : (hasData ? '填寫中' : '未填寫');
+    let updatedText = att?.updated_at ? `最後更新：${new Date(att.updated_at).toLocaleDateString('zh-TW')}` : '尚未填寫';
+
+    const card = document.createElement('div');
+    card.className = `store-card ${statusClass}`;
+    card.innerHTML = `
+      <div class="store-hdr">
+        <div class="store-name">${store.name}</div>
+        <span class="store-badge ${badgeClass}">${badgeText}</span>
+      </div>
+      <div class="store-meta">
+        <span>📅 ${updatedText}</span>
+      </div>
+      <div class="store-actions">
+        <button class="action-btn primary" onclick="goToStore('${store.id}', '${store.name}')">查看出勤詳情</button>
+        <button class="action-btn" onclick="goToSetup('${store.id}', '${store.name}')">員工設定</button>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+
+  document.getElementById('stat-total').textContent = stores.length;
+  document.getElementById('stat-done').textContent = done;
+  document.getElementById('stat-pending').textContent = pending;
+};
+
+window.goToStore = function(storeId, storeName) {
+  sessionStorage.setItem('view_store_id', storeId);
+  sessionStorage.setItem('view_store_name', storeName);
+  sessionStorage.setItem('admin_view', '1');
+  window.location.href = 'store.html';
+};
+
+window.goToSetup = function(storeId, storeName) {
+  sessionStorage.setItem('view_store_id', storeId);
+  sessionStorage.setItem('view_store_name', storeName);
+  sessionStorage.setItem('admin_view', '1');
+  sessionStorage.setItem('goto_tab', 'setup');
+  window.location.href = 'store.html';
+};
+
+window.openAddStore = function() {
+  document.getElementById('add-store-overlay').classList.add('open');
+};
+
+window.closeAddStore = function() {
+  document.getElementById('add-store-overlay').classList.remove('open');
+};
+
+window.addManagerRow = function() {
+  const list = document.getElementById('manager-list');
+  if (list.children.length >= 3) { alert('最多 3 位管理人員'); return; }
+  const row = document.createElement('div');
+  row.className = 'manager-row';
+  row.innerHTML = `<input type="text" placeholder="姓名" class="mgr-name" /><input type="text" placeholder="身分證號碼" class="mgr-id" style="letter-spacing:0.05em;" />`;
+  list.appendChild(row);
+};
+
+window.saveStore = async function() {
+  const name = document.getElementById('new-store-name').value.trim();
+  if (!name) { alert('請輸入店名'); return; }
+
+  // 建立店家
+  const { data: store, error } = await supabase
+    .from('stores')
+    .insert({ name })
+    .select()
+    .single();
+
+  if (error) { alert('建立失敗：' + error.message); return; }
+
+  // 建立管理人員
+  const rows = document.querySelectorAll('.manager-row');
+  const managers = [];
+  rows.forEach(row => {
+    const mName = row.querySelector('.mgr-name').value.trim();
+    const mId = row.querySelector('.mgr-id').value.trim().toUpperCase();
+    if (mName && mId) managers.push({ name: mName, id_number: mId, store_id: store.id, role: 'manager' });
+  });
+
+  if (managers.length > 0) {
+    const { error: ue } = await supabase.from('users').insert(managers);
+    if (ue) { alert('管理人員建立失敗：' + ue.message); }
+  }
+
+  closeAddStore();
+  document.getElementById('new-store-name').value = '';
+  document.querySelectorAll('.mgr-name, .mgr-id').forEach(el => el.value = '');
+  loadDashboard();
+};
+
+// 初始載入
+loadDashboard();
+</script>
+</body>
+</html>
