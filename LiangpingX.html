@@ -542,6 +542,27 @@ body::before {
       <div class="si hi"><div class="si-lbl">有請假</div><div class="si-num" id="s-l">0</div></div>
       <div class="si"><div class="si-lbl">未填寫</div><div class="si-num" id="s-p">0</div></div>
     </div>
+    <!-- 換裝置區塊 -->
+    <div style="background:var(--gold-pale);border-left:3px solid var(--gold);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:500;color:#9a7a20;margin-bottom:10px;letter-spacing:0.08em;">📱 換裝置繼續填寫</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="ei-btn" onclick="exportCode()" style="background:var(--ink);color:white;border-color:var(--ink);flex:1;justify-content:center;">
+          複製資料碼（換裝置用）
+        </button>
+        <button class="ei-btn" onclick="openImportCode()" style="flex:1;justify-content:center;">
+          貼上資料碼還原
+        </button>
+      </div>
+      <div id="export-code-box" style="display:none;margin-top:10px;">
+        <textarea id="export-code-text" readonly style="width:100%;height:80px;font-size:11px;border:1px solid var(--paper-line);border-radius:var(--r);padding:8px;font-family:monospace;background:white;resize:none;"></textarea>
+        <div style="font-size:11px;color:var(--ink-light);margin-top:4px;">👆 長按選取全部 → 複製 → 到新裝置貼上</div>
+      </div>
+      <div id="import-code-box" style="display:none;margin-top:10px;">
+        <textarea id="import-code-text" placeholder="貼上資料碼..." style="width:100%;height:80px;font-size:11px;border:1px solid var(--paper-line);border-radius:var(--r);padding:8px;font-family:monospace;background:white;resize:none;"></textarea>
+        <button onclick="doImportCode()" style="margin-top:6px;width:100%;padding:10px;background:var(--ink);color:white;border:none;border-radius:var(--r);font-family:'Noto Sans TC',sans-serif;font-size:13px;cursor:pointer;">還原資料</button>
+      </div>
+    </div>
+
     <div class="actions">
       <button class="print-btn" onclick="window.print()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg>
@@ -717,6 +738,62 @@ function onTargetSalaryChange(rowId) {
   if (healthInput) healthInput.value = autoHealthIns(insuredSalary);
   autoSave();
 }
+function exportCode() {
+  autoSave();
+  const store = localStorage.getItem(SK) || '{}';
+  const emps  = localStorage.getItem(EK) || '[]';
+  const fill  = localStorage.getItem(FK) || '{}';
+  const month = localStorage.getItem('att_month') || '';
+  const all   = { store: JSON.parse(store), emps: JSON.parse(emps), fill: JSON.parse(fill), month };
+  const code  = btoa(encodeURIComponent(JSON.stringify(all)));
+  
+  const box = document.getElementById('export-code-box');
+  const txt = document.getElementById('export-code-text');
+  document.getElementById('import-code-box').style.display = 'none';
+  box.style.display = 'block';
+  txt.value = code;
+  txt.select();
+  try {
+    navigator.clipboard.writeText(code).then(() => {
+      txt.parentElement.querySelector('div').textContent = '✅ 已複製！到新裝置貼上即可還原';
+    });
+  } catch(e) {
+    txt.parentElement.querySelector('div').textContent = '👆 長按選取全部 → 複製 → 到新裝置貼上';
+  }
+}
+
+function openImportCode() {
+  document.getElementById('export-code-box').style.display = 'none';
+  const box = document.getElementById('import-code-box');
+  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+function doImportCode() {
+  const code = document.getElementById('import-code-text').value.trim();
+  if (!code) { alert('請先貼上資料碼'); return; }
+  try {
+    const all = JSON.parse(decodeURIComponent(atob(code)));
+    if (!all.emps || !Array.isArray(all.emps)) throw new Error();
+    localStorage.setItem(SK, JSON.stringify(all.store || {}));
+    localStorage.setItem(EK, JSON.stringify(all.emps));
+    if (all.fill) localStorage.setItem(FK, JSON.stringify(all.fill));
+    if (all.month) localStorage.setItem('att_month', all.month);
+    // 重新載入
+    document.getElementById('s-store').value = all.store?.name || '';
+    document.getElementById('setup-rows').innerHTML = '';
+    sSeq = 0;
+    all.emps.forEach(e => addSetupRow(e.name, e.targetSalary, e.laborIns, e.healthIns, e.healthType, e.mealIns, e.pensionRate, e.role, e.hourlyRate));
+    if (all.month) document.getElementById('f-month').value = all.month;
+    buildFill();
+    goTab('fill');
+    document.getElementById('import-code-box').style.display = 'none';
+    document.getElementById('import-code-text').value = '';
+    alert('✅ 還原成功！');
+  } catch(e) {
+    alert('資料碼格式錯誤，請重新複製。');
+  }
+}
+
 function clearFillData() {
   const btn = document.getElementById('clear-fill-btn');
   if (btn.dataset.confirming !== '1') {
