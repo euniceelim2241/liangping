@@ -2364,9 +2364,10 @@ function renderDateArea(lid, mode) {
 const calState = {};
 const alCalState = {};
 
-function buildCalendar(lid, area) {
+function buildCalendar(lid, area, onChangeCallback) {
   const now = new Date();
   calState[lid] = calState[lid] || { year: now.getFullYear(), month: now.getMonth(), selected: [], collapsed: false };
+  if (onChangeCallback) calState[lid]._onChange = onChangeCallback;
   const st = calState[lid];
 
   const wrap = document.createElement('div');
@@ -2473,6 +2474,7 @@ function toggleCalDay(lid, dateStr) {
   if (idx >= 0) st.selected.splice(idx,1); else st.selected.push(dateStr);
   st._render();
   updateSum();
+  if (st._onChange) st._onChange();
 }
 function calMove(lid, dir) {
   const st = calState[lid]; if (!st) return;
