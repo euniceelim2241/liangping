@@ -3217,8 +3217,15 @@ function closeWelcome() {
   document.getElementById('holiday-block')?.addEventListener('input', e => {
     if (e.target.classList.contains('holiday-days-in')) updateSum();
   });
-  // 從 Supabase 初始化
-  if (window._init) window._init();
+  // 等模組載入完才執行 _init
+  function tryInit(retry) {
+    if (window._init) {
+      window._init();
+    } else if (retry > 0) {
+      setTimeout(() => tryInit(retry - 1), 100);
+    }
+  }
+  tryInit(30);
 })();
 </script>
 </body>
