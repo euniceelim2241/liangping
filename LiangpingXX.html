@@ -443,6 +443,16 @@ body::before {
     <div class="stamp"><b>勤</b><small>ATTENDANCE</small></div>
   </header>
 
+  <!-- 雲端同步列 -->
+  <div id="sync-bar" style="background:#f0f7ff;border-bottom:1px solid #c8ddf5;padding:8px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#4a7fc1" stroke-width="2" width="15" height="15" style="flex-shrink:0"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+    <span style="font-size:12px;color:#4a7fc1;font-weight:500;white-space:nowrap;">雲端同步</span>
+    <input id="sync-url-input" type="text" placeholder="貼上 Apps Script 部署網址" value=""
+      style="flex:1;min-width:200px;font-size:12px;border:1px solid #c8ddf5;border-radius:6px;padding:5px 10px;outline:none;font-family:'Noto Sans TC',sans-serif;color:#333;" />
+    <button onclick="saveSyncUrl()" style="font-size:12px;background:#4a7fc1;color:white;border:none;border-radius:6px;padding:5px 14px;cursor:pointer;white-space:nowrap;">儲存網址</button>
+    <span id="sync-status" style="font-size:12px;color:#4a7fc1;opacity:0;transition:opacity 0.4s;white-space:nowrap;"></span>
+  </div>
+
   <div class="tabs">
     <button class="tab" id="t-fill" onclick="goTab('fill')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg>
@@ -678,12 +688,103 @@ const LEAVE_TYPES = ['病假','事假','生理假','喪假','家庭照顧假','�
 const SK = 'att_store', EK = 'att_emps', FK = 'att_fill';
 let empList = [], sSeq = 0, lvSeq = 0;
 
+/* ── 雲端同步 ── */
+let SYNC_URL = localStorage.getItem('att_sync_url') || 'https://script.google.com/macros/s/AKfycbwfu3hUUvO15N5Z-x2WIBFYJn1rTq-UJTVWsPfNJaxUqF7vTKiSZaMGte2oo96g6b7p/exec';
+let _syncTimer = null;
+
+function setSyncUrl(url) {
+  SYNC_URL = url.trim();
+  localStorage.setItem('att_sync_url', SYNC_URL);
+}
+
+function saveSyncUrl() {
+  const input = document.getElementById('sync-url-input');
+  const url = input?.value?.trim() || '';
+  if (!url) { showSyncStatus('⚠ 請先貼上網址'); return; }
+  setSyncUrl(url);
+  showSyncStatus('⟳ 測試連線中…');
+  cloudLoad().then(d => {
+    if (d && !d.error) {
+      if (d.emps && d.emps.length) {
+        applyCloudData(d);
+        buildFill();
+        buildSetup();
+        showSyncStatus('✓ 連線成功，已載入雲端資料');
+      } else {
+        // 雲端是空的，把本機資料推上去
+        cloudSave(getAllData());
+        showSyncStatus('✓ 連線成功，本機資料已上傳');
+      }
+    } else {
+      showSyncStatus('⚠ 連線失敗，請確認網址');
+    }
+  }).catch(() => showSyncStatus('⚠ 連線失敗，請確認網址'));
+}
+
+function cloudLoad() {
+  if (!SYNC_URL) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const cbName = '_syncCb_' + Date.now();
+    const script = document.createElement('script');
+    const timer  = setTimeout(() => { cleanup(); resolve(null); }, 8000);
+    function cleanup() { clearTimeout(timer); delete window[cbName]; if (script.parentNode) script.parentNode.removeChild(script); }
+    window[cbName] = (data) => { cleanup(); resolve(data); };
+    script.src = SYNC_URL + '?callback=' + cbName + '&t=' + Date.now();
+    script.onerror = () => { cleanup(); resolve(null); };
+    document.head.appendChild(script);
+  });
+}
+
+function cloudSave(data) {
+  if (!SYNC_URL) return;
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(() => {
+    fetch(SYNC_URL, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: { 'Content-Type': 'text/plain' }
+    }).then(r => r.json())
+      .then(d => { if (d.ok) showSyncStatus('✓ 已同步至雲端'); else showSyncStatus('⚠ 同步失敗'); })
+      .catch(() => showSyncStatus('⚠ 同步失敗，請確認網路'));
+  }, 1200);
+}
+
+function showSyncStatus(msg) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.opacity = '0'; }, 3000);
+}
+
+function getAllData() {
+  return {
+    store: JSON.parse(localStorage.getItem(SK) || '{}'),
+    emps:  JSON.parse(localStorage.getItem(EK) || '[]'),
+    fill:  JSON.parse(localStorage.getItem(FK) || '{}'),
+    month: localStorage.getItem('att_month') || ''
+  };
+}
+
+function applyCloudData(d) {
+  if (!d || !d.emps) return;
+  localStorage.setItem(SK, JSON.stringify(d.store || {}));
+  localStorage.setItem(EK, JSON.stringify(d.emps || []));
+  if (d.fill)  localStorage.setItem(FK,  JSON.stringify(d.fill));
+  if (d.month) localStorage.setItem('att_month', d.month);
+}
+
 function load() {
   try { return { store: JSON.parse(localStorage.getItem(SK)||'{}'), emps: JSON.parse(localStorage.getItem(EK)||'[]') }; }
   catch(e) { return { store:{}, emps:[] }; }
 }
 function persist(store, emps) {
-  try { localStorage.setItem(SK, JSON.stringify(store)); localStorage.setItem(EK, JSON.stringify(emps)); } catch(e){}
+  try {
+    localStorage.setItem(SK, JSON.stringify(store));
+    localStorage.setItem(EK, JSON.stringify(emps));
+    cloudSave(getAllData());
+  } catch(e){}
 }
 /* ── INSURANCE BRACKET LOOKUP ── */
 const LABOR_BRACKETS = [
@@ -2743,6 +2844,7 @@ function updateSum() {
   try {
     const snap = snapshotFill();
     localStorage.setItem(FK, JSON.stringify(snap));
+    cloudSave(getAllData());
   } catch(e) {}
 }
 
@@ -3108,6 +3210,25 @@ function closeWelcome() {
   });
 
   // show welcome unless user explicitly opted out
+  // 載入已儲存的同步網址
+  const savedUrl = localStorage.getItem('att_sync_url') || '';
+  if (savedUrl) {
+    document.getElementById('sync-url-input').value = savedUrl;
+    SYNC_URL = savedUrl;
+    // 開啟時自動從雲端拉最新資料
+    showSyncStatus('⟳ 同步中…');
+    cloudLoad().then(d => {
+      if (d && d.emps && d.emps.length) {
+        applyCloudData(d);
+        buildFill();
+        buildSetup();
+        showSyncStatus('✓ 已載入雲端資料');
+      } else {
+        showSyncStatus('（無雲端資料）');
+      }
+    });
+  }
+
   if (localStorage.getItem('att_welcomed') !== '1') {
     document.getElementById('welcome-overlay').style.display = 'flex';
   }
