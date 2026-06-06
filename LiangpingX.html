@@ -124,20 +124,23 @@ body::before {
 .qbtn svg { width: 14px; height: 14px; }
 
 /* Inline OT row always visible when card is open */
-.fc-normal-ot { border-top: 1px solid var(--green-border); background: var(--green-pale); }
-.fc-normal-ot-inner { display: flex; align-items: center; gap: 10px; padding: 8px 16px; flex-wrap: wrap; }
+.fc-normal-ot { border-top: 3px solid var(--green-border); background: white; }
+.fc-normal-ot-hdr { display: flex; align-items: center; gap: 6px; padding: 9px 16px; background: #d6f0e2; border-bottom: 1px solid var(--green-border); font-size: 11px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: #1e6640; }
+.fc-normal-ot-inner { display: flex; align-items: center; gap: 10px; padding: 12px 16px; flex-wrap: wrap; }
 .ot-normal-in { width: 60px; border: 1px solid var(--green-border); border-radius: 6px; background: white; font-family: 'Noto Sans TC', sans-serif; font-size: 13px; color: var(--ink); text-align: center; padding: 5px 6px; outline: none; }
 .ot-normal-in:focus { border-color: var(--green); }
 
 /* Detail section — hidden until "有特殊加班/請假" clicked */
 .fc-detail { display: none; border-top: 1px solid var(--paper-line); }
 .fc-detail.open { display: flex; flex-direction: column; }
-.detail-block { padding: 14px 16px 16px; }
-.detail-block-ot { background: #fffbf0; border-bottom: 1px solid #ede8d8; border-left: 3px solid var(--gold); }
-.detail-block-leave { background: #f4f0fb; border-left: 3px solid #7c5cbf; }
-.detail-block-title { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 12px; }
-.detail-block-ot .detail-block-title { color: #9a7a20; }
-.detail-block-leave .detail-block-title { color: #7c5cbf; }
+.detail-block { padding: 12px 16px 16px; background: white; border-top: 1px solid var(--paper-line); border-left: 3px solid transparent; }
+.detail-block-ot { border-left-color: var(--gold); }
+.detail-block-leave { border-left-color: #7c5cbf; }
+.detail-block-late { border-left-color: var(--accent); }
+.detail-block-title { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; margin: -12px -16px 14px; padding: 9px 16px; border-bottom: 1px solid var(--paper-line); }
+.detail-block-ot .detail-block-title { color: #7a5c10; background: #fef3cd; border-bottom-color: #e8d8a0; }
+.detail-block-leave .detail-block-title { color: #5a3f9a; background: #ede8f7; border-bottom-color: #c8b8e8; }
+.detail-block-late .detail-block-title { color: var(--accent); background: var(--accent-pale); border-bottom-color: #e0b8b0; }
 
 .d-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
 .d-fld { display: flex; flex-direction: column; gap: 5px; }
@@ -148,8 +151,8 @@ body::before {
 
 /* Leave rows */
 .lv-sec-lbl { font-size: 10px; letter-spacing: 0.13em; color: var(--ink-light); text-transform: uppercase; margin-bottom: 8px; }
-.lv-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
-.lv-row { background: var(--leave-bg); border: 1px solid var(--leave-border); border-radius: var(--r); padding: 10px 12px; }
+.lv-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
+.lv-row { background: white; border: 1px solid var(--leave-border); border-left: 3px solid #7c5cbf; border-radius: var(--r); padding: 10px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 .lv-top { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
 .lv-row select { border: 1px solid var(--leave-border); border-radius: 6px; background: white; font-family: 'Noto Sans TC', sans-serif; font-size: 13px; color: var(--ink); padding: 7px 8px; outline: none; cursor: pointer; }
 .lv-row select:focus { border-color: var(--accent); }
@@ -461,8 +464,8 @@ body::before {
 
   <!-- ── SETUP ── -->
   <div class="view" id="v-setup">
-    <div class="hint"><strong>只需設定一次</strong>，之後每個月打開檔案員工名單自動帶入。</div>
-    <div class="section-hint">💡 輸入店名與員工資料後會自動儲存。若有人事異動（調薪、離職、勞健保級距變更），直接回此頁修改即可，更改後會即時同步到填寫頁面。<br>若該員工有餐費補助（如央廚同仁），請在進階設定勾選「投保含餐費」，系統會以目標薪資 +2000 計算投保級距，並在每月填寫顯示餐費補助欄位。<br>每位員工資料預設為 🔒 鎖定狀態，防止誤觸修改。需要編輯時點 🔒 解鎖，修改完畢後再點 🔓 鎖回。</div>
+    <div class="hint"><strong>只需設定一次</strong>——填好之後，下個月開啟直接填寫，不用重填。</div>
+    <div class="section-hint">💡 填完後會自動存檔，不需要手動按儲存。<br>若之後有人事異動（調薪、離職、保費異動），回這頁改就好，會立刻同步到填寫頁面。<br>有領餐費補助的員工（如央廚），請點「進階設定」勾選「投保含餐費」。<br>每位員工預設為 🔒 鎖定，避免誤改。要修改時先點 🔒 解鎖，改完再點 🔓 鎖回。</div>
     <div class="fld"><label>店名（分店）</label><input type="text" id="s-store" placeholder="例：信義店" oninput="autoSave()" onblur="autoSave()" /></div>
     <div style="margin-top:20px;"></div>
     <div class="setup-rows" id="setup-rows"></div>
@@ -480,7 +483,7 @@ body::before {
         匯入名單備份
         <input type="file" accept=".json" style="display:none;" onchange="importData(event)" />
       </label>
-      <span class="ei-hint">換電腦或更新檔案時，匯入備份即可還原名單</span>
+      <span class="ei-hint">換裝置或換新版本時，匯入備份就能把名單還原回來</span>
     </div>
   </div>
 
@@ -491,14 +494,15 @@ body::before {
       <div class="meta-box"><label>統計月份</label><input type="month" id="f-month" /></div>
     </div>
     <div class="sec-lbl">同仁出勤明細</div>
-    <div class="section-hint">💡 每位員工點一下展開，選「本月正常出勤」或「有出勤異常」。填完全部人員、確認人員異動與國定補薪後，才可切換到「出勤彙整」或「薪資條」。<br><br>
-      <strong>本月正常出勤</strong>：該員工本月無請假、無特殊加班、無遲到，薪資以目標薪資為基準計算。若有常態加班時數（×1.34）或餐費補助，仍可在正常出勤狀態下填寫。<br>
-      <strong>有出勤異常</strong>：該員工本月有請假（病假、事假等）、特殊加班（×1.67、×2.67、周休三日加班）、或遲到扣薪，需展開填寫詳細資料。</div>
+    <div class="section-hint">💡 點一下員工名字展開，選擇當月狀況：<br><br>
+      <strong>本月正常出勤</strong>：沒有請假、沒有特殊加班、沒有遲到。有常態加班（×1.34）或餐費補助也選這個，直接在展開後填入。<br>
+      <strong>有出勤異常</strong>：有請假（病假、事假等）、特殊加班（×1.67、×2.67、周休三日加班）、或遲到，選這個再填詳細內容。<br><br>
+      全部員工都填完、下方人員異動與國定補薪也確認後，才能切到「出勤彙整」或「薪資條」。</div>
     <div id="fill-cards"></div>
 
     <!-- 人員異動 -->
     <div class="sec-lbl" style="margin-top:32px;">人員異動</div>
-    <div class="section-hint">💡 本月有新進或離職員工才需填寫，否則請點「本月無人員異動」。選擇員工後填入到職日；若已離職，選「已離職」後填入離職日、退保日及未放特休天數。</div>
+    <div class="section-hint">💡 本月有人到職或離職才需要填，沒有的話直接點「本月無人員異動」。<br>新進：選員工姓名，填入到職日。<br>離職：選「已離職」，再填離職日、退保日、以及還沒放的特休天數。</div>
     <div class="chg-block">
       <div class="chg-rows" id="chg-rows"></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
@@ -514,7 +518,7 @@ body::before {
 
     <!-- 國定假日補薪 -->
     <div class="sec-lbl" style="margin-top:28px;">國定假日補薪</div>
-    <div class="section-hint">💡 本月有國定假日需補薪時填寫，否則請點「本月無國定補薪」。可勾選個別員工並填入補薪天數，或在「全員補 ＿ 天」填入天數後按「套用」一次完成。</div>
+    <div class="section-hint">💡 本月有國定假日補薪才需要填，沒有的話直接點「本月無國定補薪」。<br>勾選要補薪的員工，填入天數；或用「全員補 ＿ 天」一次套用給所有人。</div>
     <div class="chg-block" id="holiday-block">
       <button class="none-btn" id="holiday-none-btn" onclick="toggleNone('holiday')" style="margin-top:8px;">
         ✓ 本月無國定補薪
@@ -524,7 +528,7 @@ body::before {
 
     <!-- 特休紀錄 -->
     <div class="sec-lbl" style="margin-top:28px;">特休紀錄</div>
-    <div class="section-hint">💡 記錄本月員工放特休的日期，僅供紀錄用途，不影響薪資計算。出勤彙整可看到每位同仁的特休日期。</div>
+    <div class="section-hint">💡 記錄本月誰放了特休、哪幾天。這裡只做紀錄，不影響薪資計算。填完後在「出勤彙整」可以看到每個人的特休日期。</div>
     <div class="chg-block" id="al-block">
       <div id="al-rows"></div>
       <button class="add-row-btn" onclick="addAnnualLeaveRow()">
@@ -637,28 +641,28 @@ body::before {
         <div class="wm-step-num">1</div>
         <div class="wm-step-body">
           <div class="wm-step-title">設定員工名單</div>
-          <div class="wm-step-desc">點右上角「名單設定」，輸入店名與所有員工的姓名、目標薪資、勞健保資料。資料會<strong>自動儲存</strong>，之後每月開啟直接填寫，不需重新設定。</div>
+          <div class="wm-step-desc">點右上角「員工名單設定」，輸入店名和每位員工的基本資料（姓名、目標薪資、勞健保）。<strong>自動存檔</strong>，以後每個月打開就能直接填，不用重填。</div>
         </div>
       </div>
       <div class="wm-step">
         <div class="wm-step-num">2</div>
         <div class="wm-step-body">
           <div class="wm-step-title">每月填寫出勤</div>
-          <div class="wm-step-desc">點「每月填寫」，每位員工點選「本月正常出勤」或「有出勤異常」展開填寫。頁面下方另有<strong>人員異動</strong>（本月新進或離職）與<strong>國定假日補薪</strong>區塊，有需要時再填，若無則點「無」按鈕。</div>
+          <div class="wm-step-desc">點「每月填寫」，幫每位員工選「本月正常出勤」或「有出勤異常」。頁面下方的<strong>人員異動</strong>和<strong>國定假日補薪</strong>，有需要才填；沒有的話點「無」即可。</div>
         </div>
       </div>
       <div class="wm-step">
         <div class="wm-step-num">3</div>
         <div class="wm-step-body">
           <div class="wm-step-title">查看出勤彙整</div>
-          <div class="wm-step-desc">填完後切到「出勤彙整」，可截圖或產生圖片傳給總部，清楚顯示每人當月異動狀況。</div>
+          <div class="wm-step-desc">填完後切到「出勤彙整」，可以產生圖片直接傳給總部，清楚呈現每人當月的出勤狀況。</div>
         </div>
       </div>
       <div class="wm-step">
         <div class="wm-step-num">4</div>
         <div class="wm-step-body">
           <div class="wm-step-title">下載薪資條</div>
-          <div class="wm-step-desc">切到「薪資條」，系統自動依薪資結構計算，可一鍵下載全員薪資條圖片，各自傳給員工。</div>
+          <div class="wm-step-desc">切到「薪資條」，系統自動算好每個人的薪資，一鍵下載全員薪資條圖片，再分別傳給員工就完成了。</div>
         </div>
       </div>
     </div>
@@ -1717,7 +1721,6 @@ function delSetupRow(id) {
 function renumSetup() { document.querySelectorAll('.setup-row .row-num').forEach((el,i)=>el.textContent=i+1); }
 function autoSave() {
   const store = document.getElementById('s-store')?.value?.trim()||'';
-  const mgr   = document.getElementById('s-mgr')?.value?.trim()||'';
   const rows  = [...document.querySelectorAll('.setup-row')];
   const emps  = rows.map((row, i) => {
     const inputs = row.querySelectorAll('input[type="number"]');
@@ -1735,7 +1738,7 @@ function autoSave() {
       hourlyRate:   parseFloat(document.getElementById('rhourly'+id)?.value) || 0,
     };
   }).filter(e => e.name);
-  persist({name:store, manager:mgr}, emps);
+  persist({name:store}, emps);
 
   // 即時同步填寫頁（若已建立）
   if (empList.length || emps.length) {
@@ -2023,6 +2026,8 @@ function restoreFill(snap) {
   }
 
   // 特休紀錄還原
+  document.getElementById('al-rows').innerHTML = '';
+  alSeq = 0;
   if (snap.__al?.length) {
     snap.__al.forEach(al => {
       addAnnualLeaveRow();
@@ -2101,6 +2106,9 @@ function buildFill() {
   }
   empList.forEach((e, i) => c.appendChild(makeCard(e, i+1)));
   if (!document.querySelector('.holiday-item')) addHolidayRow();
+  // 每次重建前確保特休區塊乾淨，避免 Chrome file:// 環境疊加
+  document.getElementById('al-rows').innerHTML = '';
+  alSeq = 0;
   // 還原上次填寫資料
   try {
     const saved = localStorage.getItem(FK);
@@ -2181,27 +2189,29 @@ function makeCard(emp, num) {
         </button>
       </div>
       <div class="fc-normal-ot" id="fn${emp.id}">
+        <div class="fc-normal-ot-hdr">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          常態加班
+        </div>
         <div class="fc-normal-ot-inner">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" style="color:var(--gold);flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-          <span style="font-size:12px;color:var(--ink-light);">常態加班 <span style="color:var(--ink-faint)">（×1.34）</span></span>
+          <span style="font-size:13px;color:var(--ink-light);">時數</span>
           <input type="number" min="0" step="0.5" placeholder="0" class="ot-in ot-normal-in" oninput="updateSum()" />
-          <span style="font-size:12px;color:var(--ink-light);">小時</span>
+          <span style="font-size:13px;color:var(--ink-light);">小時 <span style="color:var(--ink-faint);font-size:11px;">（× 1.34）</span></span>
           ${emp.mealIns ? `
-          <div style="width:1px;height:18px;background:var(--green-border);margin:0 4px;flex-shrink:0;"></div>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" style="color:var(--green);flex-shrink:0"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>
-          <span style="font-size:12px;color:var(--ink-light);">餐費補助</span>
+          <div style="width:1px;height:18px;background:var(--green-border);margin:0 6px;flex-shrink:0;"></div>
+          <span style="font-size:13px;color:var(--ink-light);">餐費補助</span>
           <input type="number" min="0" step="1" placeholder="0" class="meal-in" oninput="updateSum()" style="width:72px;border:1px solid var(--green-border);border-radius:6px;background:white;font-family:'Noto Sans TC',sans-serif;font-size:13px;color:var(--ink);text-align:center;padding:6px 4px;outline:none;" />
-          <span style="font-size:12px;color:var(--ink-light);">元</span>` : `<input type="hidden" class="meal-in" value="0" />`}
+          <span style="font-size:13px;color:var(--ink-light);">元</span>` : `<input type="hidden" class="meal-in" value="0" />`}
         </div>
       </div>
       <div class="fc-detail" id="fd${emp.id}">
         <div class="detail-block detail-block-ot">
           <div class="detail-block-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
             特殊加班
           </div>
           <div class="d-fld">
-            <div class="ot-special-list" id="otsl${emp.id}" style="display:flex;flex-direction:column;gap:6px;margin-top:4px;"></div>
+            <div class="ot-special-list" id="otsl${emp.id}" style="display:flex;flex-direction:column;gap:12px;margin-top:4px;"></div>
             <button class="add-date-btn" style="margin-top:6px;" onclick="addOtSpecial('${emp.id}')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
               新增特殊加班
@@ -2210,7 +2220,7 @@ function makeCard(emp, num) {
         </div>
         <div class="detail-block detail-block-leave">
           <div class="detail-block-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
             假別
           </div>
           <div class="lv-list" id="lv${emp.id}"></div>
@@ -2219,33 +2229,33 @@ function makeCard(emp, num) {
             新增假別
           </button>
         </div>
-        <div class="detail-block" style="background:#fdf4ff;border-left:3px solid #9c6bb5;">
-          <div class="detail-block-title" style="color:#7a4a99;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <div class="detail-block detail-block-late">
+          <div class="detail-block-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
             ${emp.role === 'pt' ? '出勤時數' : '遲到扣薪'}
           </div>
           ${emp.role === 'pt' ? `
-          <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;flex-direction:column;gap:12px;">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <span style="font-size:12px;color:var(--ink-light);">本月出勤時數</span>
-              <input type="number" min="0" step="0.5" placeholder="0" class="pt-hours-in" style="width:60px;border:1px solid #d4b8e0;border-radius:6px;background:white;font-family:'Noto Sans TC',sans-serif;font-size:13px;text-align:center;padding:6px 4px;outline:none;" oninput="updateSum()" />
-              <span style="font-size:12px;color:var(--ink-light);">小時</span>
+              <span style="font-size:13px;color:var(--ink-light);">本月出勤時數</span>
+              <input type="number" min="0" step="0.5" placeholder="0" class="pt-hours-in" style="width:60px;border:1px solid var(--ink-faint);border-radius:6px;background:white;font-family:'Noto Sans TC',sans-serif;font-size:13px;text-align:center;padding:6px 4px;outline:none;" oninput="updateSum()" />
+              <span style="font-size:13px;color:var(--ink-light);">小時</span>
             </div>
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <span style="font-size:12px;color:var(--ink-light);">病假</span>
-              <input type="number" min="0" step="0.5" placeholder="0" class="pt-sick-in" style="width:60px;border:1px solid #d4b8e0;border-radius:6px;background:white;font-family:'Noto Sans TC',sans-serif;font-size:13px;text-align:center;padding:6px 4px;outline:none;" oninput="updateSum()" />
-              <span style="font-size:12px;color:var(--ink-light);">小時（半薪）</span>
+              <span style="font-size:13px;color:var(--ink-light);">病假</span>
+              <input type="number" min="0" step="0.5" placeholder="0" class="pt-sick-in" style="width:60px;border:1px solid var(--ink-faint);border-radius:6px;background:white;font-family:'Noto Sans TC',sans-serif;font-size:13px;text-align:center;padding:6px 4px;outline:none;" oninput="updateSum()" />
+              <span style="font-size:13px;color:var(--ink-light);">小時（半薪）</span>
             </div>
           </div>` : emp.role === 'manager' || emp.role === 'asst' ? `
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <span style="font-size:12px;color:var(--ink-light);">遲到次數</span>
-            <input type="number" min="0" step="1" placeholder="0" class="late-pts-in" style="width:60px;border:1px solid #d4b8e0;border-radius:6px;background:white;font-family:'Noto Sans TC',sans-serif;font-size:13px;text-align:center;padding:6px 4px;outline:none;" oninput="updateSum()" />
-            <span style="font-size:12px;color:var(--ink-light);">次（每次 100 元）</span>
+            <span style="font-size:13px;color:var(--ink-light);">遲到次數</span>
+            <input type="number" min="0" step="1" placeholder="0" class="late-pts-in" style="width:60px;border:1px solid var(--ink-faint);border-radius:6px;background:white;font-family:'Noto Sans TC',sans-serif;font-size:13px;text-align:center;padding:6px 4px;outline:none;" oninput="updateSum()" />
+            <span style="font-size:13px;color:var(--ink-light);">次 <span style="color:var(--ink-faint);font-size:11px;">（每次 100 元）</span></span>
           </div>` : `
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <span style="font-size:12px;color:var(--ink-light);">遲到點數</span>
-            <input type="number" min="0" step="1" placeholder="0" class="late-pts-in" style="width:60px;border:1px solid #d4b8e0;border-radius:6px;background:white;font-family:'Noto Sans TC',sans-serif;font-size:13px;text-align:center;padding:6px 4px;outline:none;" oninput="updateSum()" />
-            <span style="font-size:12px;color:var(--ink-light);">點</span>
+            <span style="font-size:13px;color:var(--ink-light);">遲到點數</span>
+            <input type="number" min="0" step="1" placeholder="0" class="late-pts-in" style="width:60px;border:1px solid var(--ink-faint);border-radius:6px;background:white;font-family:'Noto Sans TC',sans-serif;font-size:13px;text-align:center;padding:6px 4px;outline:none;" oninput="updateSum()" />
+            <span style="font-size:13px;color:var(--ink-light);">點</span>
           </div>`}
         </div>
       </div>
@@ -2260,7 +2270,7 @@ function addAnnualLeaveRow() {
   const nameOpts = empList.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
   const row = document.createElement('div');
   row.id = 'alr'+alSeq;
-  row.className = 'chg-row';
+  row.className = 'al-row';
   row.innerHTML = `
     <div class="chg-row-top">
       <select class="chg-type-sel" id="aln${alSeq}">
@@ -2698,7 +2708,7 @@ function addOtSpecial(eid) {
   const list = document.getElementById('otsl'+eid);
   const row = document.createElement('div');
   row.id = 'ots'+sid;
-  row.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:var(--leave-bg);border:1px solid var(--leave-border);border-radius:var(--r);padding:8px 10px;';
+  row.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:white;border:1px solid var(--leave-border);border-left:3px solid var(--gold);border-radius:var(--r);padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);';
   row.innerHTML = `
     <input class="lv-date-in" type="date" style="font-size:13px;" />
     <input type="number" min="0" step="0.5" placeholder="時數" oninput="updateSum()" style="width:62px;border:1px solid var(--leave-border);border-radius:6px;background:white;font-family:'Noto Sans TC',sans-serif;font-size:13px;color:var(--ink);text-align:center;padding:7px 4px;outline:none;" />
@@ -2922,12 +2932,6 @@ function selectAllHol(hid) {
   });
 }
 
-function allOneDay(hid) {
-  empList.forEach((e, i) => {
-    const cb = document.getElementById('hec'+hid+'_'+i);
-    if (cb && !cb.checked) { cb.checked = true; onHolEmpCheck(hid, i); }
-  });
-}
 
 function allSameDays(hid) {
   const btn   = document.getElementById('hbtn'+hid);
